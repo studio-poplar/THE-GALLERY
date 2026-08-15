@@ -40,6 +40,28 @@
   nav.tabs button.active{ color:var(--ink); border-color:var(--accent); }
   nav.tabs button:hover{ border-color:var(--accent); }
 
+  .gh-status-row{ display:flex; align-items:center; gap:12px; }
+  .gh-status{ font-size:.68rem; letter-spacing:.06em; color:var(--dim); }
+  .gh-status.connected{ color:var(--accent); }
+
+  .gh-modal-backdrop{
+    position:fixed; inset:0; z-index:98; background:rgba(0,0,0,.6);
+    display:none; align-items:center; justify-content:center; padding:6%;
+  }
+  .gh-modal-backdrop.open{ display:flex; }
+  .gh-modal{
+    width:min(520px,100%); background:#0d0d0e; border:1px solid rgba(244,239,228,.2);
+    padding:32px; max-height:88vh; overflow-y:auto;
+  }
+  .gh-modal h3{ font-size:1.1rem; font-weight:400; margin-bottom:6px; }
+  .gh-modal .hint{ font-size:.72rem; color:var(--dim); line-height:1.8; margin-bottom:20px; }
+  .gh-modal .hint a{ color:var(--accent); }
+  .gh-modal .field{ margin-bottom:16px; }
+  .gh-modal-actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
+  .gh-test-result{ margin-top:12px; font-size:.72rem; line-height:1.7; min-height:1em; }
+  .gh-test-result.ok{ color:var(--accent); }
+  .gh-test-result.err{ color:#e08a76; }
+
   main{ max-width:1080px; margin:0 auto; padding:48px 4% 100px; }
   .panel{ display:none; }
   .panel.active{ display:block; }
@@ -220,12 +242,16 @@
       <button type="button" data-tab="site">サイト設定</button>
       <button type="button" data-tab="layout">スライドレイアウト</button>
     </nav>
+    <div class="gh-status-row">
+      <span class="gh-status" id="ghStatus">GitHub: 未接続</span>
+      <button type="button" class="btn" id="ghSettingsBtn">⚙ GitHub連携設定</button>
+    </div>
   </header>
 
   <main>
     <div class="note">
       これは自前の簡易管理画面です。データベースやサーバーは持たず、<b>data/ フォルダ内のJSONファイルを直接編集</b>するツールです。
-      編集後は各パネルの「JSONをダウンロード」ボタンで出力し、ダウンロードしたファイルで <code>data/</code> フォルダ内の同名ファイルを置き換えてください(例: <code>works.json</code>)。
+      GitHub連携を設定すると、各パネルの「GitHubに保存」ボタンから<b>直接コミットして公開</b>できます(ファイルのダウンロード・置き換えは不要になります)。未設定の場合は「JSONをダウンロード」で出力し、手動で <code>data/</code> フォルダ内のファイルを置き換えてください。
     </div>
 
     <!-- ============ 作品タブ ============ -->
@@ -237,6 +263,7 @@
           <p>作品の追加・編集・削除ができます。年代区分・流派/技法は表記ゆれ防止のため固定の選択肢から選びます。</p>
         </div>
         <div class="btn-row">
+          <button type="button" class="btn primary" id="worksSaveGithub">GitHubに保存</button>
           <button type="button" class="btn" id="worksDownload">JSONをダウンロード</button>
           <button type="button" class="btn primary" id="worksAddBtn">+ 新規作品を追加</button>
         </div>
@@ -256,6 +283,7 @@
           <p>「作者について」セクションに表示される内容です。肖像画像を設定しない場合は、サイト側で頭文字のプレースホルダーが表示されます。</p>
         </div>
         <div class="btn-row">
+          <button type="button" class="btn primary" id="artistsSaveGithub">GitHubに保存</button>
           <button type="button" class="btn" id="artistsDownload">JSONをダウンロード</button>
           <button type="button" class="btn primary" id="artistsAddBtn">+ 新規作者を追加</button>
         </div>
@@ -275,7 +303,8 @@
           <p>ロゴ・配色・フォント・トップの見出しブロック・フッター文言・BGM音源のパスを設定します。</p>
         </div>
         <div class="btn-row">
-          <button type="button" class="btn primary" id="siteDownload">JSONをダウンロード</button>
+          <button type="button" class="btn primary" id="siteSaveGithub">GitHubに保存</button>
+          <button type="button" class="btn" id="siteDownload">JSONをダウンロード</button>
         </div>
       </div>
 
@@ -318,11 +347,12 @@
         <div>
           <div class="eyebrow">HERO LAYOUT</div>
           <h2 class="serif">スライドレイアウト</h2>
-          <p>スライドショー内の5要素(タイトル/作者・年/解説文/流派タグ/技法ラベル)の配置を、全スライド共通の1テンプレートとして編集します。ボックスをドラッグで移動、右下の■で幅を変更できます。右側のパネルからは数値で正確に指定することもできます。</p>
+          <p>タイトル・作者/年・解説文・流派タグ・技法ラベルは1つのグループとして扱われ、全スライド共通の位置に配置されます(グループ内部の並びは自動)。ボックスをドラッグで移動、右下の■で幅を変更できます。右側のパネルからは数値で正確に指定することもできます。</p>
         </div>
         <div class="btn-row">
           <button type="button" class="btn" id="layoutReset">初期値に戻す</button>
-          <button type="button" class="btn primary" id="layoutDownload">JSONをダウンロード</button>
+          <button type="button" class="btn primary" id="layoutSaveGithub">GitHubに保存</button>
+          <button type="button" class="btn" id="layoutDownload">JSONをダウンロード</button>
         </div>
       </div>
       <div class="layout-editor-wrap">
@@ -422,6 +452,30 @@
   </aside>
 
   <div class="toast" id="toast"></div>
+
+  <div class="gh-modal-backdrop" id="ghModalBackdrop">
+    <div class="gh-modal">
+      <h3 class="serif">GitHub連携設定</h3>
+      <div class="hint">
+        ここで設定した情報を使って、保存ボタンを押した際に<b>GitHub APIで直接リポジトリにコミット</b>します(ファイルのダウンロード・手動置き換えが不要になります)。<br><br>
+        トークンはこのブラウザの localStorage に保存され、GitHubのAPI(api.github.com)以外には送信されません。<b>「Fine-grained personal access token」</b>を、対象リポジトリのみ・Contents権限「Read and write」のみに絞って発行することを強く推奨します(<a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">GitHubのトークン発行ページ</a>)。<br><br>
+        このパスワードゲートと同様、この保存機能もブラウザ内で完結する簡易的な仕組みです。共有PCなど、他人がこの画面にアクセスしうる環境では設定しないでください。
+      </div>
+      <form id="ghForm">
+        <div class="field"><label>GitHubユーザー名 / Organization</label><input type="text" id="gh-owner" placeholder="studio-poplar" required></div>
+        <div class="field"><label>リポジトリ名</label><input type="text" id="gh-repo" placeholder="THE-GALLERY" required></div>
+        <div class="field"><label>ブランチ名</label><input type="text" id="gh-branch" placeholder="master" required></div>
+        <div class="field"><label>Personal Access Token</label><input type="password" id="gh-token" placeholder="github_pat_..." autocomplete="off" required></div>
+        <div class="gh-modal-actions">
+          <button type="submit" class="btn primary">保存</button>
+          <button type="button" class="btn" id="ghTestBtn">接続テスト</button>
+          <button type="button" class="btn danger" id="ghDisconnectBtn">連携を解除</button>
+          <button type="button" class="btn" id="ghModalClose">閉じる</button>
+        </div>
+        <div class="gh-test-result" id="ghTestResult"></div>
+      </form>
+    </div>
+  </div>
   </div><!-- /#app -->
 
 <script>
@@ -505,6 +559,148 @@ function downloadJSON(filename, data){
   URL.revokeObjectURL(url);
   toast(`${filename} をダウンロードしました`);
 }
+
+/* =======================================================================
+   GitHub連携: GitHub Contents APIを使って data/*.json を直接コミットする。
+   バックエンド/データベースを持たないこの管理画面が「保存 = 公開」を実現する仕組み。
+   トークンはブラウザのlocalStorageに保存し、api.github.com以外へは送信しない。
+   ======================================================================= */
+const GH_CONFIG_KEY = 'gallery-github-config';
+
+function getGhConfig(){
+  try { return JSON.parse(localStorage.getItem(GH_CONFIG_KEY) || 'null'); }
+  catch(e){ return null; }
+}
+function setGhConfig(cfg){ localStorage.setItem(GH_CONFIG_KEY, JSON.stringify(cfg)); }
+function clearGhConfig(){ localStorage.removeItem(GH_CONFIG_KEY); }
+
+// JSON文字列(日本語含む)をUTF-8セーフにbase64エンコードする(btoa単体だとマルチバイト文字で壊れるため)
+function utf8ToBase64(str){
+  return btoa(String.fromCharCode(...new TextEncoder().encode(str)));
+}
+
+async function ghContentsRequest(path, options = {}){
+  const cfg = getGhConfig();
+  if (!cfg || !cfg.token) throw new Error('GitHub連携が未設定です(右上の「⚙ GitHub連携設定」から設定してください)');
+  const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}`;
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'Authorization': `Bearer ${cfg.token}`,
+      'Accept': 'application/vnd.github+json',
+      ...(options.headers || {}),
+    },
+  });
+  if (res.status === 404) return null;
+  if (!res.ok){
+    const body = await res.json().catch(() => ({}));
+    throw new Error(`GitHub APIエラー(${res.status}): ${body.message || res.statusText}`);
+  }
+  return res.json();
+}
+
+async function saveJSONToGithub(path, data, commitMessage){
+  const cfg = getGhConfig();
+  if (!cfg || !cfg.token) throw new Error('GitHub連携が未設定です(右上の「⚙ GitHub連携設定」から設定してください)');
+  const current = await ghContentsRequest(`${path}?ref=${encodeURIComponent(cfg.branch)}`);
+  await ghContentsRequest(path, {
+    method: 'PUT',
+    body: JSON.stringify({
+      message: commitMessage,
+      content: utf8ToBase64(JSON.stringify(data, null, 2)),
+      branch: cfg.branch,
+      ...(current ? { sha: current.sha } : {}),
+    }),
+  });
+}
+
+function updateGhStatus(){
+  const cfg = getGhConfig();
+  const el = document.getElementById('ghStatus');
+  if (cfg && cfg.token){
+    el.textContent = `GitHub: 接続済み(${cfg.owner}/${cfg.repo})`;
+    el.classList.add('connected');
+  } else {
+    el.textContent = 'GitHub: 未接続';
+    el.classList.remove('connected');
+  }
+}
+
+// 「GitHubに保存」ボタン共通処理: 保存中はボタンを無効化し、成功/失敗をトーストで知らせる
+async function saveToGithubWithFeedback(btn, path, data, commitMessage){
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '保存中…';
+  try {
+    await saveJSONToGithub(path, data, commitMessage);
+    toast(`GitHubに保存しました(${path})。数十秒〜1分ほどでサイトに反映されます`);
+  } catch(err){
+    toast(`保存に失敗しました: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+/* GitHub連携設定モーダル */
+const ghModalBackdrop = document.getElementById('ghModalBackdrop');
+function openGhModal(){
+  const cfg = getGhConfig();
+  document.getElementById('gh-owner').value = cfg?.owner || '';
+  document.getElementById('gh-repo').value = cfg?.repo || '';
+  document.getElementById('gh-branch').value = cfg?.branch || 'master';
+  document.getElementById('gh-token').value = cfg?.token || '';
+  document.getElementById('ghTestResult').textContent = '';
+  document.getElementById('ghTestResult').className = 'gh-test-result';
+  ghModalBackdrop.classList.add('open');
+}
+function closeGhModal(){ ghModalBackdrop.classList.remove('open'); }
+document.getElementById('ghSettingsBtn').addEventListener('click', openGhModal);
+document.getElementById('ghModalClose').addEventListener('click', closeGhModal);
+ghModalBackdrop.addEventListener('click', (e) => { if (e.target === ghModalBackdrop) closeGhModal(); });
+
+document.getElementById('ghForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  setGhConfig({
+    owner: document.getElementById('gh-owner').value.trim(),
+    repo: document.getElementById('gh-repo').value.trim(),
+    branch: document.getElementById('gh-branch').value.trim() || 'master',
+    token: document.getElementById('gh-token').value.trim(),
+  });
+  updateGhStatus();
+  toast('GitHub連携設定を保存しました');
+  closeGhModal();
+});
+document.getElementById('ghDisconnectBtn').addEventListener('click', () => {
+  if (!confirm('GitHub連携を解除します(保存したトークンをこのブラウザから削除します)。よろしいですか?')) return;
+  clearGhConfig();
+  updateGhStatus();
+  closeGhModal();
+  toast('GitHub連携を解除しました');
+});
+document.getElementById('ghTestBtn').addEventListener('click', async () => {
+  const resultEl = document.getElementById('ghTestResult');
+  resultEl.className = 'gh-test-result';
+  resultEl.textContent = '接続を確認しています…';
+  const testCfg = {
+    owner: document.getElementById('gh-owner').value.trim(),
+    repo: document.getElementById('gh-repo').value.trim(),
+    branch: document.getElementById('gh-branch').value.trim() || 'master',
+    token: document.getElementById('gh-token').value.trim(),
+  };
+  const prevCfg = getGhConfig();
+  setGhConfig(testCfg); // ghContentsRequestはlocalStorageの設定を見るため、一時的に反映してテストする
+  try {
+    const file = await ghContentsRequest(`data/works.json?ref=${encodeURIComponent(testCfg.branch)}`);
+    if (!file) throw new Error('data/works.json が見つかりませんでした(リポジトリ名・ブランチ名をご確認ください)');
+    resultEl.textContent = `接続成功: ${testCfg.owner}/${testCfg.repo}(${testCfg.branch}ブランチ)にアクセスできました`;
+    resultEl.classList.add('ok');
+  } catch(err){
+    resultEl.textContent = `接続失敗: ${err.message}`;
+    resultEl.classList.add('err');
+    if (prevCfg) setGhConfig(prevCfg); else clearGhConfig(); // テスト失敗時は元の設定に戻す
+  }
+});
 
 /* =======================================================================
    タブ切り替え
@@ -616,6 +812,7 @@ document.getElementById('workDeleteBtn').addEventListener('click', () => {
   toast('作品を削除しました');
 });
 document.getElementById('worksDownload').addEventListener('click', () => downloadJSON('works.json', WORKS));
+document.getElementById('worksSaveGithub').addEventListener('click', (e) => saveToGithubWithFeedback(e.target, 'data/works.json', WORKS, 'Update works.json via admin'));
 
 /* =======================================================================
    作者(Artists)
@@ -750,6 +947,7 @@ document.getElementById('artistDeleteBtn').addEventListener('click', () => {
   toast('作者を削除しました');
 });
 document.getElementById('artistsDownload').addEventListener('click', () => downloadJSON('artists.json', ARTISTS));
+document.getElementById('artistsSaveGithub').addEventListener('click', (e) => saveToGithubWithFeedback(e.target, 'data/artists.json', ARTISTS, 'Update artists.json via admin'));
 
 /* =======================================================================
    サイト設定(Site Settings)
@@ -778,9 +976,9 @@ function populateSiteForm(){
   document.getElementById('s-bgmFile').value = SITE.bgmFile || '';
 }
 
-document.getElementById('siteDownload').addEventListener('click', () => {
+function buildSiteRecord(){
   const colorInk = document.getElementById('s-colorInk').value;
-  const record = {
+  return {
     logoPrefix: document.getElementById('s-logoPrefix').value.trim(),
     logoAccent: document.getElementById('s-logoAccent').value.trim(),
     colorInk,
@@ -795,72 +993,52 @@ document.getElementById('siteDownload').addEventListener('click', () => {
     footerCopy: document.getElementById('s-footerCopy').value.trim(),
     bgmFile: document.getElementById('s-bgmFile').value.trim(),
   };
-  downloadJSON('site-settings.json', record);
-});
+}
+document.getElementById('siteDownload').addEventListener('click', () => downloadJSON('site-settings.json', buildSiteRecord()));
+document.getElementById('siteSaveGithub').addEventListener('click', (e) => saveToGithubWithFeedback(e.target, 'data/site-settings.json', buildSiteRecord(), 'Update site-settings.json via admin'));
 
 /* =======================================================================
-   スライドレイアウト(Hero Layout): ドラッグ&リサイズで5要素の位置を編集する
+   スライドレイアウト(Hero Layout): タイトル/作者・年/解説文/流派タグ/技法ラベルを
+   1つのグループとして扱い、ドラッグ&リサイズでグループ全体の位置を編集する。
+   グループ内部の並び順・間隔は自動(サイト側でmargin-topの縦積みフローに固定)なので、
+   作品ごとに文字量が違っても要素同士が重なる心配がない。
    ======================================================================= */
-let HERO_LAYOUT = {};
+let HERO_LAYOUT = { x:6, y:16, width:44, rotation:0 };
 let DEFAULT_HERO_LAYOUT = null; // 「初期値に戻す」用に読み込み直後の値を保持
-let selectedLayoutKey = 'title';
-const LAYOUT_KEYS = [
-  { key:'title',   label:'タイトル' },
-  { key:'sub',     label:'作者・年' },
-  { key:'caption', label:'解説文' },
-  { key:'schools', label:'流派タグ' },
-  { key:'specs',   label:'技法ラベル' },
-];
 const layoutCanvas = document.getElementById('layoutCanvas');
 const layoutSide = document.getElementById('layoutSide');
 
 function renderLayoutCanvas(){
-  layoutCanvas.innerHTML = LAYOUT_KEYS.map(k => {
-    const L = HERO_LAYOUT[k.key] || { x:6, y:16, width:40, rotation:0 };
-    return `<div class="layout-box${k.key === selectedLayoutKey ? ' selected' : ''}" data-key="${k.key}"
-      style="left:${L.x}%; top:${L.y}%; width:${L.width}%; transform:rotate(${L.rotation || 0}deg);">
-      <span class="layout-box-label">${k.label}</span>
-      <span class="resize-handle" data-resize="${k.key}"></span>
-    </div>`;
-  }).join('');
+  const L = HERO_LAYOUT;
+  layoutCanvas.innerHTML = `<div class="layout-box selected" style="left:${L.x}%; top:${L.y}%; width:${L.width}%; transform:rotate(${L.rotation || 0}deg);">
+    <span class="layout-box-label">タイトル・作者/年・解説文・流派タグ・技法ラベル(グループ)</span>
+    <span class="resize-handle"></span>
+  </div>`;
 }
 
 function renderLayoutSide(){
-  layoutSide.innerHTML = LAYOUT_KEYS.map(k => {
-    const L = HERO_LAYOUT[k.key] || { x:6, y:16, width:40, rotation:0 };
-    return `
-      <div class="layout-field-group${k.key === selectedLayoutKey ? ' selected' : ''}" data-key="${k.key}">
-        <div class="lfg-title">${k.label}</div>
-        <div class="lfg-row">
-          <div><label>X(%)</label><input type="number" step="1" data-prop="x" value="${L.x}"></div>
-          <div><label>Y(%)</label><input type="number" step="1" data-prop="y" value="${L.y}"></div>
-        </div>
-        <div class="lfg-row">
-          <div><label>幅(%)</label><input type="number" step="1" data-prop="width" value="${L.width}"></div>
-          <div><label>回転(度)</label><input type="number" step="1" data-prop="rotation" value="${L.rotation || 0}"></div>
-        </div>
+  const L = HERO_LAYOUT;
+  layoutSide.innerHTML = `
+    <div class="layout-field-group selected">
+      <div class="lfg-title">グループの位置・サイズ</div>
+      <div class="lfg-row">
+        <div><label>X(%)</label><input type="number" step="1" data-prop="x" value="${L.x}"></div>
+        <div><label>Y(%)</label><input type="number" step="1" data-prop="y" value="${L.y}"></div>
       </div>
-    `;
-  }).join('');
-}
-
-function selectLayoutKey(key){
-  selectedLayoutKey = key;
-  document.querySelectorAll('.layout-box').forEach(el => el.classList.toggle('selected', el.dataset.key === key));
-  document.querySelectorAll('.layout-field-group').forEach(el => el.classList.toggle('selected', el.dataset.key === key));
+      <div class="lfg-row">
+        <div><label>幅(%)</label><input type="number" step="1" data-prop="width" value="${L.width}"></div>
+        <div><label>回転(度)</label><input type="number" step="1" data-prop="rotation" value="${L.rotation || 0}"></div>
+      </div>
+    </div>
+  `;
 }
 
 // 数値パネルからの入力
 layoutSide.addEventListener('input', (e) => {
   const input = e.target.closest('input[data-prop]');
   if (!input) return;
-  const key = input.closest('.layout-field-group').dataset.key;
-  HERO_LAYOUT[key][input.dataset.prop] = Number(input.value);
+  HERO_LAYOUT[input.dataset.prop] = Number(input.value);
   renderLayoutCanvas();
-});
-layoutSide.addEventListener('click', (e) => {
-  const group = e.target.closest('.layout-field-group');
-  if (group) selectLayoutKey(group.dataset.key);
 });
 
 // キャンバス上のドラッグ移動・リサイズ
@@ -868,29 +1046,24 @@ let dragState = null;
 layoutCanvas.addEventListener('mousedown', (e) => {
   const box = e.target.closest('.layout-box');
   if (!box) return;
-  const key = box.dataset.key;
-  selectLayoutKey(key);
-  renderLayoutSide();
   const rect = layoutCanvas.getBoundingClientRect();
-  const L = HERO_LAYOUT[key];
   if (e.target.closest('.resize-handle')){
-    dragState = { type:'resize', key, startX:e.clientX, startWidthPct:L.width, canvasWidth:rect.width };
+    dragState = { type:'resize', startX:e.clientX, startWidthPct:HERO_LAYOUT.width, canvasWidth:rect.width };
   } else {
-    dragState = { type:'move', key, startX:e.clientX, startY:e.clientY, startXPct:L.x, startYPct:L.y, canvasWidth:rect.width, canvasHeight:rect.height };
+    dragState = { type:'move', startX:e.clientX, startY:e.clientY, startXPct:HERO_LAYOUT.x, startYPct:HERO_LAYOUT.y, canvasWidth:rect.width, canvasHeight:rect.height };
   }
   e.preventDefault();
 });
 document.addEventListener('mousemove', (e) => {
   if (!dragState) return;
-  const L = HERO_LAYOUT[dragState.key];
   if (dragState.type === 'move'){
     const dxPct = (e.clientX - dragState.startX) / dragState.canvasWidth * 100;
     const dyPct = (e.clientY - dragState.startY) / dragState.canvasHeight * 100;
-    L.x = Math.round(Math.max(0, Math.min(96, dragState.startXPct + dxPct)));
-    L.y = Math.round(Math.max(0, Math.min(96, dragState.startYPct + dyPct)));
+    HERO_LAYOUT.x = Math.round(Math.max(0, Math.min(96, dragState.startXPct + dxPct)));
+    HERO_LAYOUT.y = Math.round(Math.max(0, Math.min(96, dragState.startYPct + dyPct)));
   } else {
     const dxPct = (e.clientX - dragState.startX) / dragState.canvasWidth * 100;
-    L.width = Math.round(Math.max(8, Math.min(94, dragState.startWidthPct + dxPct)));
+    HERO_LAYOUT.width = Math.round(Math.max(8, Math.min(94, dragState.startWidthPct + dxPct)));
   }
   renderLayoutCanvas();
   renderLayoutSide();
@@ -905,6 +1078,7 @@ document.getElementById('layoutReset').addEventListener('click', () => {
   renderLayoutSide();
 });
 document.getElementById('layoutDownload').addEventListener('click', () => downloadJSON('hero-layout.json', HERO_LAYOUT));
+document.getElementById('layoutSaveGithub').addEventListener('click', (e) => saveToGithubWithFeedback(e.target, 'data/hero-layout.json', HERO_LAYOUT, 'Update hero-layout.json via admin'));
 
 /* =======================================================================
    初期化
@@ -927,6 +1101,7 @@ async function init(){
   if (WORKS[0]) layoutCanvas.style.backgroundImage = `url('${imageUrl(WORKS[0].source, WORKS[0].file, 1200)}')`;
   renderLayoutCanvas();
   renderLayoutSide();
+  updateGhStatus();
 }
 init();
 </script>

@@ -91,27 +91,27 @@
       linear-gradient(180deg, rgba(0,0,0,.4) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 68%, rgba(0,0,0,.55) 100%);
   }
 
-  /* スライド内テキスト5要素(タイトル/作者・年/解説文/流派タグ/技法ラベル)。
-     CMSのレイアウトテンプレート(data/hero-layout.json)に基づき、JS側でleft/top/width/rotationを
-     要素ごとに個別設定する ―― 全スライド共通の1テンプレートを適用するPowerPoint風の自由配置。
-     文字が乗る範囲だけに敷くドット地のscrimは、絵画が完全に隠れないよう半透明に留める。 */
-  .slide .el{ position:absolute; z-index:6; }
-  .el-title, .el-sub, .el-caption, .el-specs{
+  /* スライド内テキスト(タイトル/作者・年/解説文/流派タグ/技法ラベル)は1つのグループとして扱う。
+     グループ全体の位置・幅・回転だけをCMSのレイアウトテンプレート(data/hero-layout.json)で指定し、
+     グループ内部は通常の縦積みフロー(margin-top)で自動配置する ―― 作品ごとに文字量が異なっても
+     要素同士が重ならないようにするため、個別要素の自由配置(旧仕様)から変更した。 */
+  .el-group{ position:absolute; z-index:6; }
+  .el-group .title, .el-group .sub, .el-group .caption, .el-group .specs{
     background-color:rgba(6,6,7,.5);
     background-image:radial-gradient(rgba(244,239,228,.35) 1px, transparent 1.3px);
     background-size:7px 7px;
     backdrop-filter:blur(1.5px);
     padding:14px 18px;
   }
-  .el-title{ font-size:clamp(1.7rem,4.4vw,3rem); font-weight:400; line-height:1.15; }
-  .el-sub{ font-size:.82rem; letter-spacing:.1em; color:var(--dim); }
-  .el-caption{ font-size:.8rem; line-height:1.9; color:var(--dim); }
-  .el-schools{ display:flex; flex-wrap:wrap; gap:8px; }
-  .el-schools span{ font-size:.62rem; letter-spacing:.1em; color:var(--accent); border:1px solid rgba(215,181,106,.5); padding:4px 9px; background:rgba(6,6,7,.5); }
-  .el-specs{ font-size:.68rem; letter-spacing:.16em; color:var(--dim); line-height:1.9; }
+  .el-group .title{ font-size:clamp(1.7rem,4.4vw,3rem); font-weight:400; line-height:1.15; }
+  .el-group .sub{ margin-top:10px; font-size:.82rem; letter-spacing:.1em; color:var(--dim); }
+  .el-group .caption{ margin-top:14px; font-size:.8rem; line-height:1.9; color:var(--dim); }
+  .el-group .schools{ margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; }
+  .el-group .schools span{ font-size:.62rem; letter-spacing:.1em; color:var(--accent); border:1px solid rgba(215,181,106,.5); padding:4px 9px; background:rgba(6,6,7,.5); }
+  .el-group .specs{ margin-top:14px; font-size:.68rem; letter-spacing:.16em; color:var(--dim); line-height:1.9; }
 
-  /* 画像のみモード: 解説要素5点と進捗バーを非表示。Ken Burnsは維持 */
-  .hero.mode-image-only .el,
+  /* 画像のみモード: 解説グループと進捗バーを非表示。Ken Burnsは維持 */
+  .hero.mode-image-only .el-group,
   .hero.mode-image-only .progress{ display:none; }
 
   /* スライド進捗インジケーター */
@@ -294,7 +294,7 @@
     .header-actions{ gap:6px; }
     .hero-btn{ padding:7px 9px; font-size:.58rem; }
     .hero-btn span.label{ display:none; } /* 幅を確保するため、狭い画面ではドットのみ残しラベルは隠す */
-    .el-caption{ display:none; } /* 狭い画面では解説文は省略し、タイトル/作者/年のみ表示 */
+    .el-group .caption{ display:none; } /* 狭い画面では解説文は省略し、タイトル/作者/年のみ表示 */
     .filter-panel{ width:100vw; padding:96px 24px 40px; }
     .gallery-intro{ padding:90px 6% 32px; }
     .artists-intro{ padding:70px 6% 32px; }
@@ -420,7 +420,8 @@ const SCHOOLS = [
    site-settings.json: logoPrefix / logoAccent / colorInk / colorDim / colorAccent /
                  fontStack / introEyebrow / introHeading / introBody /
                  footerDisclaimer / footerCredit / footerCopy / bgmFile
-   hero-layout.json: title/sub/caption/schools/specsそれぞれの{x,y,width,rotation}(%指定)
+   hero-layout.json: タイトル/作者・年/解説文/流派タグ/技法ラベルをまとめた1グループの{x,y,width,rotation}(%指定)。
+                 グループ内部は自動縦積み(重なり防止のため個別要素の位置指定はしない)
    ======================================================================= */
 let WORKS = [];
 let ARTISTS = [];
@@ -566,10 +567,10 @@ function goTo(i){
   scheduleNext(SLIDE_MS);
 }
 
-// hero-layout.jsonの1テンプレートを、スライド内5要素それぞれのinline styleに変換する
-function layoutStyle(key){
-  const L = HERO_LAYOUT[key] || {};
-  const x = L.x ?? 6, y = L.y ?? 16, w = L.width ?? 40, r = L.rotation ?? 0;
+// hero-layout.jsonの1テンプレート(グループ全体の位置・幅・回転)をinline styleに変換する
+function layoutStyle(){
+  const L = HERO_LAYOUT || {};
+  const x = L.x ?? 6, y = L.y ?? 16, w = L.width ?? 44, r = L.rotation ?? 0;
   return `left:${x}%; top:${y}%; width:${w}%;${r ? ` transform:rotate(${r}deg);` : ''}`;
 }
 
@@ -594,11 +595,13 @@ function renderHero(list){
     const schoolsLabel = w.schools.map(id => SCHOOLS.find(s => s.id === id)?.label || id);
     slide.innerHTML = `
       <div class="bg" style="background-image:url('${imageUrl(w, 2400)}')"></div>
-      <div class="el el-title serif" style="${layoutStyle('title')}">${w.title}</div>
-      <div class="el el-sub" style="${layoutStyle('sub')}">${w.artist} — ${w.year}</div>
-      <p class="el el-caption" style="${layoutStyle('caption')}">${w.caption}</p>
-      <div class="el el-schools" style="${layoutStyle('schools')}">${schoolsLabel.map(l => `<span>${l}</span>`).join('')}</div>
-      <div class="el el-specs" style="${layoutStyle('specs')}">${w.medium.split(' · ')[0]}</div>
+      <div class="el-group" style="${layoutStyle()}">
+        <div class="title serif">${w.title}</div>
+        <div class="sub">${w.artist} — ${w.year}</div>
+        <p class="caption">${w.caption}</p>
+        <div class="schools">${schoolsLabel.map(l => `<span>${l}</span>`).join('')}</div>
+        <div class="specs">${w.medium.split(' · ')[0]}</div>
+      </div>
     `;
     hero.appendChild(slide);
     return slide;
