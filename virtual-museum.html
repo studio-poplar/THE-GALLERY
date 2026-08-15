@@ -177,6 +177,18 @@
     font-size:.68rem; letter-spacing:.1em; padding:10px 16px; cursor:pointer;
   }
   .filter-panel .reset:hover{ border-color:var(--accent); }
+
+  /* スマホでチェックボックスが多く縦に長くなるため、確定して戻るためのボタンを下部に固定表示する */
+  .filter-panel-footer{
+    position:sticky; bottom:0; margin:28px -32px -40px;
+    padding:18px 32px calc(18px + env(safe-area-inset-bottom, 0px));
+    background:rgba(8,8,9,.98); backdrop-filter:blur(6px);
+    border-top:1px solid rgba(244,239,228,.15);
+  }
+  .filter-panel-footer button{
+    width:100%; background:var(--accent); color:#0a0a0b; border:none;
+    padding:14px; font-size:.74rem; letter-spacing:.08em; font-weight:500; cursor:pointer;
+  }
   .filter-backdrop{
     position:fixed; inset:0; z-index:59; background:rgba(0,0,0,.4);
     opacity:0; pointer-events:none; transition:opacity .4s ease;
@@ -263,8 +275,8 @@
     padding:40px 0; border-top:1px solid rgba(244,239,228,.12);
   }
   .artist:first-child{ border-top:none; }
-  .artist-portrait{ width:220px; height:220px; overflow:hidden; background:#111; }
-  .artist-portrait img{ width:100%; height:100%; object-fit:cover; display:block; filter:saturate(1.02) contrast(1.02); }
+  .artist-portrait{ width:220px; height:280px; overflow:hidden; background:#111; }
+  .artist-portrait img{ width:100%; height:100%; object-fit:cover; object-position:center top; display:block; filter:saturate(1.02) contrast(1.02); }
   .artist-portrait .placeholder{
     width:100%; height:100%; display:flex; align-items:center; justify-content:center;
     background-color:rgba(6,6,7,.6);
@@ -301,10 +313,11 @@
     .hero-btn span.label{ display:none; } /* 幅を確保するため、狭い画面ではドットのみ残しラベルは隠す */
     .el-group .caption{ display:none; } /* 狭い画面では解説文は省略し、タイトル/作者/年のみ表示 */
     .filter-panel{ width:100vw; padding:96px 24px 40px; }
+    .filter-panel-footer{ margin:28px -24px -40px; }
     .gallery-intro{ padding:90px 6% 32px; }
     .artists-intro{ padding:70px 6% 32px; }
     .artist{ grid-template-columns:1fr; gap:20px; }
-    .artist-portrait{ width:140px; height:140px; }
+    .artist-portrait{ width:140px; height:180px; }
     .artist-portrait-note{ max-width:none; }
   }
 </style>
@@ -343,6 +356,10 @@
 
     <div class="count" id="filterCount"></div>
     <button type="button" class="reset" id="filterReset">条件をすべて解除する</button>
+
+    <div class="filter-panel-footer">
+      <button type="button" id="filterApply">この条件で見る(<span id="filterApplyCount"></span>点)</button>
+    </div>
   </aside>
 
   <section class="hero" id="hero">
@@ -715,7 +732,9 @@ const artistSelect = document.getElementById('artistSelect');
 const eraChips = document.getElementById('eraChips');
 const schoolChips = document.getElementById('schoolChips');
 const filterCount = document.getElementById('filterCount');
+const filterApplyCount = document.getElementById('filterApplyCount');
 const filterReset = document.getElementById('filterReset');
+const filterApply = document.getElementById('filterApply');
 
 function openPanel(open){
   filterPanel.classList.toggle('open', open);
@@ -728,6 +747,12 @@ function openPanel(open){
 menuBtn.addEventListener('click', () => openPanel(!filterPanel.classList.contains('open')));
 headerEl.addEventListener('mouseleave', () => headerEl.classList.remove('force-hidden'));
 filterBackdrop.addEventListener('click', () => openPanel(false));
+// スマホ等でチェックボックスが多く縦に長い場合、上までスクロールして戻らなくても
+// この固定ボタンひとつでパネルを閉じ、結果(スライドショー)の先頭に戻れるようにする
+filterApply.addEventListener('click', () => {
+  openPanel(false);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape'){ openPanel(false); closeDetail(); } });
 
 // 作者セレクトの選択肢はWORKSから動的生成(表記ゆれ防止のため作品データそのものを正とする)。
@@ -878,6 +903,7 @@ function refresh(){
   renderHero(list);
   renderGrid(list);
   filterCount.textContent = `該当作品: ${list.length} 点 / 全 ${WORKS.length} 点`;
+  filterApplyCount.textContent = list.length;
 }
 
 /* =======================================================================
