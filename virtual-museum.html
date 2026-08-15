@@ -95,7 +95,7 @@
      グループ全体の位置・幅・回転だけをCMSのレイアウトテンプレート(data/hero-layout.json)で指定し、
      グループ内部は通常の縦積みフロー(margin-top)で自動配置する ―― 作品ごとに文字量が異なっても
      要素同士が重ならないようにするため、個別要素の自由配置(旧仕様)から変更した。 */
-  .el-group{ position:absolute; z-index:6; }
+  .el-group{ position:absolute; z-index:6; color:var(--ink); } /* colorはCMSのcustom color指定でグループ単位に上書きできるよう明示的に設定 */
   .el-group .title, .el-group .sub, .el-group .caption, .el-group .specs{
     background-color:rgba(6,6,7,.5);
     background-image:radial-gradient(rgba(244,239,228,.35) 1px, transparent 1.3px);
@@ -568,10 +568,24 @@ function goTo(i){
 }
 
 // hero-layout.jsonの1テンプレート(グループ全体の位置・幅・回転)をinline styleに変換する
+// #rrggbb と不透明度から rgba() 文字列を作る(スライド文字グループの補助文字色(dim)を、
+// 指定した文字色(ink)から自動生成するため。サイト設定のcolorDim自動生成と同じ考え方)
+function hexToRgba(hex, alpha){
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || '');
+  if (!m) return null;
+  const [r, g, b] = [m[1], m[2], m[3]].map(h => parseInt(h, 16));
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 function layoutStyle(){
   const L = HERO_LAYOUT || {};
   const x = L.x ?? 6, y = L.y ?? 16, w = L.width ?? 44, r = L.rotation ?? 0;
-  return `left:${x}%; top:${y}%; width:${w}%;${r ? ` transform:rotate(${r}deg);` : ''}`;
+  let style = `left:${x}%; top:${y}%; width:${w}%;${r ? ` transform:rotate(${r}deg);` : ''}`;
+  if (L.color){
+    const dim = hexToRgba(L.color, 0.7);
+    style += ` --ink:${L.color};${dim ? ` --dim:${dim};` : ''}`;
+  }
+  return style;
 }
 
 function renderHero(list){

@@ -1003,14 +1003,14 @@ document.getElementById('siteSaveGithub').addEventListener('click', (e) => saveT
    グループ内部の並び順・間隔は自動(サイト側でmargin-topの縦積みフローに固定)なので、
    作品ごとに文字量が違っても要素同士が重なる心配がない。
    ======================================================================= */
-let HERO_LAYOUT = { x:6, y:16, width:44, rotation:0 };
+let HERO_LAYOUT = { x:6, y:16, width:44, rotation:0, color:null };
 let DEFAULT_HERO_LAYOUT = null; // 「初期値に戻す」用に読み込み直後の値を保持
 const layoutCanvas = document.getElementById('layoutCanvas');
 const layoutSide = document.getElementById('layoutSide');
 
 function renderLayoutCanvas(){
   const L = HERO_LAYOUT;
-  layoutCanvas.innerHTML = `<div class="layout-box selected" style="left:${L.x}%; top:${L.y}%; width:${L.width}%; transform:rotate(${L.rotation || 0}deg);">
+  layoutCanvas.innerHTML = `<div class="layout-box selected" style="left:${L.x}%; top:${L.y}%; width:${L.width}%; transform:rotate(${L.rotation || 0}deg);${L.color ? ` color:${L.color};` : ''}">
     <span class="layout-box-label">タイトル・作者/年・解説文・流派タグ・技法ラベル(グループ)</span>
     <span class="resize-handle"></span>
   </div>`;
@@ -1029,15 +1029,30 @@ function renderLayoutSide(){
         <div><label>幅(%)</label><input type="number" step="1" data-prop="width" value="${L.width}"></div>
         <div><label>回転(度)</label><input type="number" step="1" data-prop="rotation" value="${L.rotation || 0}"></div>
       </div>
+      <div class="lfg-row" style="grid-template-columns:1fr;">
+        <div>
+          <label>文字色(未設定 = サイト共通の文字色を使用)</label>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="color" data-prop="color" value="${L.color || '#f4efe4'}" style="width:44px; height:32px; padding:2px; cursor:pointer;">
+            <button type="button" class="btn" id="layoutColorClear" style="padding:6px 10px; font-size:.62rem;">サイト共通の色に戻す</button>
+          </div>
+        </div>
+      </div>
     </div>
   `;
+  document.getElementById('layoutColorClear').addEventListener('click', () => {
+    HERO_LAYOUT.color = null;
+    renderLayoutCanvas();
+    renderLayoutSide();
+  });
 }
 
 // 数値パネルからの入力
 layoutSide.addEventListener('input', (e) => {
   const input = e.target.closest('input[data-prop]');
   if (!input) return;
-  HERO_LAYOUT[input.dataset.prop] = Number(input.value);
+  const prop = input.dataset.prop;
+  HERO_LAYOUT[prop] = prop === 'color' ? input.value : Number(input.value);
   renderLayoutCanvas();
 });
 
