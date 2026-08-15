@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>THE GALLERY — 管理画面</title>
+<style>
+  :root{
+    --ink:#f4efe4;
+    --dim: rgba(244,239,228,.6);
+    --accent:#d7b56a;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{
+    background:#0a0a0b;
+    color:var(--ink);
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+    min-height:100vh;
+  }
+  .serif{ font-family: Georgia, "Times New Roman", "Hiragino Mincho ProN", serif; }
+  button, input, select, textarea{ font-family:inherit; }
+  :focus-visible{ outline:1px solid var(--accent); outline-offset:2px; }
+
+  header{
+    position:sticky; top:0; z-index:20; background:rgba(8,8,9,.97); backdrop-filter:blur(6px);
+    border-bottom:1px solid rgba(244,239,228,.12);
+    padding:22px 4%;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;
+  }
+  header .logo{ font-size:1rem; letter-spacing:.28em; }
+  header .logo span{ color:var(--accent); }
+  header .logo .sub{ display:block; margin-top:4px; font-size:.66rem; letter-spacing:.14em; color:var(--dim); font-family:inherit; }
+
+  nav.tabs{ display:flex; gap:8px; flex-wrap:wrap; }
+  nav.tabs button{
+    background:transparent; border:1px solid rgba(244,239,228,.35); color:var(--dim);
+    padding:9px 16px; font-size:.72rem; letter-spacing:.1em; cursor:pointer;
+  }
+  nav.tabs button.active{ color:var(--ink); border-color:var(--accent); }
+  nav.tabs button:hover{ border-color:var(--accent); }
+
+  main{ max-width:1080px; margin:0 auto; padding:48px 4% 100px; }
+  .panel{ display:none; }
+  .panel.active{ display:block; }
+
+  .panel-head{ display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:32px; }
+  .panel-head .eyebrow{ font-size:.68rem; letter-spacing:.22em; color:var(--accent); }
+  .panel-head h2{ margin-top:10px; font-size:1.6rem; font-weight:400; }
+  .panel-head p{ margin-top:8px; font-size:.78rem; color:var(--dim); max-width:520px; line-height:1.7; }
+
+  .btn{
+    background:transparent; border:1px solid rgba(244,239,228,.4); color:var(--ink);
+    padding:11px 18px; font-size:.72rem; letter-spacing:.1em; cursor:pointer; white-space:nowrap;
+  }
+  .btn:hover{ border-color:var(--accent); }
+  .btn.primary{ border-color:var(--accent); color:var(--accent); }
+  .btn.primary:hover{ background:var(--accent); color:#0a0a0b; }
+  .btn.danger{ border-color:rgba(220,110,90,.5); color:#e08a76; }
+  .btn.danger:hover{ background:rgba(220,110,90,.15); }
+  .btn-row{ display:flex; gap:10px; flex-wrap:wrap; }
+
+  .note{
+    margin-bottom:28px; padding:14px 18px; border:1px solid rgba(215,181,106,.35);
+    background:rgba(215,181,106,.06); font-size:.74rem; line-height:1.8; color:var(--dim);
+  }
+  .note b{ color:var(--ink); }
+
+  table.list{ width:100%; border-collapse:collapse; margin-bottom:20px; }
+  table.list th{
+    text-align:left; font-size:.64rem; letter-spacing:.12em; color:var(--dim);
+    padding:10px 12px; border-bottom:1px solid rgba(244,239,228,.2);
+  }
+  table.list td{ padding:12px; border-bottom:1px solid rgba(244,239,228,.08); font-size:.8rem; vertical-align:middle; }
+  table.list tr:hover td{ background:rgba(244,239,228,.03); }
+  table.list img.thumb{ width:52px; height:52px; object-fit:cover; display:block; background:#111; }
+  table.list .row-actions{ display:flex; gap:8px; }
+  table.list .row-actions button{
+    background:transparent; border:1px solid rgba(244,239,228,.3); color:var(--dim);
+    padding:6px 10px; font-size:.66rem; letter-spacing:.06em; cursor:pointer;
+  }
+  table.list .row-actions button:hover{ border-color:var(--accent); color:var(--ink); }
+
+  .empty-row td{ color:var(--dim); font-size:.8rem; padding:24px 12px; text-align:center; }
+
+  /* 編集フォーム(スライドイン) */
+  .editor-backdrop{
+    position:fixed; inset:0; z-index:59; background:rgba(0,0,0,.5);
+    opacity:0; pointer-events:none; transition:opacity .3s ease;
+  }
+  .editor-backdrop.open{ opacity:1; pointer-events:auto; }
+  .editor{
+    position:fixed; top:0; right:0; height:100vh; width:min(560px,94vw); z-index:60;
+    background:#0d0d0e; border-left:1px solid rgba(244,239,228,.15);
+    padding:32px 32px 100px; overflow-y:auto;
+    transform:translateX(100%); transition:transform .35s ease;
+  }
+  .editor.open{ transform:translateX(0); }
+  .editor h3{ font-size:1.2rem; font-weight:400; margin-bottom:24px; }
+  .field{ margin-bottom:20px; }
+  .field label{ display:block; font-size:.68rem; letter-spacing:.1em; color:var(--dim); margin-bottom:8px; }
+  .field input[type=text], .field input[type=number], .field textarea, .field select{
+    width:100%; background:rgba(255,255,255,.03); color:var(--ink);
+    border:1px solid rgba(244,239,228,.3); padding:10px 12px; font-size:.82rem;
+  }
+  .field textarea{ resize:vertical; min-height:70px; line-height:1.7; }
+  .field .hint{ margin-top:6px; font-size:.66rem; color:var(--dim); opacity:.8; }
+  .chip-check-row{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip-check{ position:relative; display:inline-flex; }
+  .chip-check input{ position:absolute; inset:0; opacity:0; width:100%; height:100%; margin:0; cursor:pointer; }
+  .chip-check span{
+    display:inline-flex; align-items:center; font-size:.7rem; padding:7px 12px;
+    border:1px solid rgba(244,239,228,.32); color:var(--dim);
+  }
+  .chip-check input:checked + span{ color:var(--ink); border-color:var(--accent); }
+  .editor-footer{ position:sticky; bottom:-100px; margin-top:8px; padding-top:20px; }
+  .editor-close{
+    position:absolute; top:24px; right:24px; width:32px; height:32px; border-radius:50%;
+    border:1px solid rgba(244,239,228,.4); background:transparent; color:var(--ink); cursor:pointer; font-size:1rem;
+  }
+  .editor-close:hover{ border-color:var(--accent); }
+
+  .color-row{ display:flex; align-items:center; gap:12px; }
+  .color-row input[type=color]{ width:44px; height:36px; border:1px solid rgba(244,239,228,.3); background:none; padding:2px; cursor:pointer; }
+
+  /* ============ 簡易パスワードゲート ============ */
+  #authGate{
+    position:fixed; inset:0; z-index:100; background:#0a0a0b;
+    display:flex; align-items:center; justify-content:center; flex-direction:column; gap:18px;
+    padding:0 6%; text-align:center;
+  }
+  #authGate .eyebrow{ font-size:.68rem; letter-spacing:.24em; color:var(--accent); }
+  #authGate h1{ font-size:1.3rem; font-weight:400; margin-top:10px; }
+  #authGate form{ display:flex; gap:10px; margin-top:18px; flex-wrap:wrap; justify-content:center; }
+  #authGate input[type=password]{
+    background:rgba(255,255,255,.03); color:var(--ink); border:1px solid rgba(244,239,228,.3);
+    padding:11px 14px; font-size:.85rem; width:220px;
+  }
+  #authGate .error{ margin-top:12px; font-size:.72rem; color:#e08a76; min-height:1em; }
+  #app{ display:none; }
+
+  .portrait-preview-row{ display:flex; align-items:center; gap:16px; }
+  .portrait-preview{
+    width:88px; height:88px; flex:none; border:1px solid rgba(244,239,228,.3);
+    background:rgba(255,255,255,.03); display:flex; align-items:center; justify-content:center; overflow:hidden;
+  }
+  .portrait-preview span{ font-size:.62rem; color:var(--dim); }
+  .portrait-preview img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .portrait-preview-actions{ display:flex; flex-direction:column; gap:8px; }
+  .portrait-preview-actions .btn{ text-align:center; }
+
+  .toast{
+    position:fixed; left:50%; bottom:28px; transform:translate(-50%,20px); z-index:80;
+    background:var(--accent); color:#0a0a0b; padding:12px 20px; font-size:.76rem; letter-spacing:.04em;
+    opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease;
+  }
+  .toast.show{ opacity:1; transform:translate(-50%,0); }
+
+  /* ============ スライドレイアウト・ドラッグ配置エディタ ============ */
+  .layout-editor-wrap{ display:grid; grid-template-columns:1fr 320px; gap:32px; align-items:start; }
+  .layout-canvas-wrap{ width:100%; }
+  .layout-canvas{
+    position:relative; width:100%; aspect-ratio:16/9; background:#050505 center/cover no-repeat;
+    border:1px solid rgba(244,239,228,.2); overflow:hidden; user-select:none;
+  }
+  .layout-box{
+    position:absolute; cursor:move; border:1px dashed rgba(215,181,106,.6);
+    background:rgba(6,6,7,.55); color:var(--ink); font-size:.68rem; letter-spacing:.06em;
+    padding:8px 10px; line-height:1.4;
+  }
+  .layout-box.selected{ border-style:solid; border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+  .layout-box .layout-box-label{ pointer-events:none; opacity:.9; }
+  .layout-box .resize-handle{
+    position:absolute; right:-5px; bottom:-5px; width:12px; height:12px;
+    background:var(--accent); cursor:nwse-resize;
+  }
+  .layout-side .field{ margin-bottom:0; }
+  .layout-field-group{
+    border:1px solid rgba(244,239,228,.15); padding:16px; margin-bottom:14px; cursor:pointer;
+  }
+  .layout-field-group.selected{ border-color:var(--accent); }
+  .layout-field-group .lfg-title{ font-size:.76rem; margin-bottom:12px; color:var(--ink); }
+  .layout-field-group .lfg-row{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
+  .layout-field-group label{ display:block; font-size:.6rem; color:var(--dim); margin-bottom:4px; }
+  .layout-field-group input{
+    width:100%; background:rgba(255,255,255,.03); color:var(--ink);
+    border:1px solid rgba(244,239,228,.3); padding:6px 8px; font-size:.74rem;
+  }
+
+  @media (max-width:900px){
+    .layout-editor-wrap{ grid-template-columns:1fr; }
+  }
+
+  @media (max-width:720px){
+    table.list thead{ display:none; }
+    table.list, table.list tbody, table.list tr, table.list td{ display:block; width:100%; }
+    table.list tr{ padding:12px 0; border-bottom:1px solid rgba(244,239,228,.12); }
+    table.list td{ border:none; padding:4px 0; }
+  }
+</style>
+</head>
+<body>
+
+  <div id="authGate">
+    <div class="eyebrow">THE GALLERY</div>
+    <h1 class="serif">管理画面(要パスワード)</h1>
+    <form id="authForm">
+      <input type="password" id="authPassword" placeholder="パスワード" autocomplete="current-password" autofocus>
+      <button type="submit" class="btn primary">入る</button>
+    </form>
+    <div class="error" id="authError"></div>
+  </div>
+
+  <div id="app">
+  <header>
+    <div class="logo serif">THE <span>GALLERY</span><span class="sub">CONTENT MANAGEMENT(簡易版)</span></div>
+    <nav class="tabs" id="tabs">
+      <button type="button" data-tab="works" class="active">作品</button>
+      <button type="button" data-tab="artists">作者</button>
+      <button type="button" data-tab="site">サイト設定</button>
+      <button type="button" data-tab="layout">スライドレイアウト</button>
+    </nav>
+  </header>
+
+  <main>
+    <div class="note">
+      これは自前の簡易管理画面です。データベースやサーバーは持たず、<b>data/ フォルダ内のJSONファイルを直接編集</b>するツールです。
+      編集後は各パネルの「JSONをダウンロード」ボタンで出力し、ダウンロードしたファイルで <code>data/</code> フォルダ内の同名ファイルを置き換えてください(例: <code>works.json</code>)。
+    </div>
+
+    <!-- ============ 作品タブ ============ -->
+    <section class="panel active" id="panel-works">
+      <div class="panel-head">
+        <div>
+          <div class="eyebrow">WORKS</div>
+          <h2 class="serif">作品(<span id="worksCount">0</span>点)</h2>
+          <p>作品の追加・編集・削除ができます。年代区分・流派/技法は表記ゆれ防止のため固定の選択肢から選びます。</p>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn" id="worksDownload">JSONをダウンロード</button>
+          <button type="button" class="btn primary" id="worksAddBtn">+ 新規作品を追加</button>
+        </div>
+      </div>
+      <table class="list" id="worksTable">
+        <thead><tr><th></th><th>タイトル</th><th>作者</th><th>年代</th><th></th></tr></thead>
+        <tbody id="worksTbody"></tbody>
+      </table>
+    </section>
+
+    <!-- ============ 作者タブ ============ -->
+    <section class="panel" id="panel-artists">
+      <div class="panel-head">
+        <div>
+          <div class="eyebrow">ARTISTS</div>
+          <h2 class="serif">作者(<span id="artistsCount">0</span>名)</h2>
+          <p>「作者について」セクションに表示される内容です。肖像画像を設定しない場合は、サイト側で頭文字のプレースホルダーが表示されます。</p>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn" id="artistsDownload">JSONをダウンロード</button>
+          <button type="button" class="btn primary" id="artistsAddBtn">+ 新規作者を追加</button>
+        </div>
+      </div>
+      <table class="list" id="artistsTable">
+        <thead><tr><th></th><th>名前</th><th>生没年</th><th></th></tr></thead>
+        <tbody id="artistsTbody"></tbody>
+      </table>
+    </section>
+
+    <!-- ============ サイト設定タブ ============ -->
+    <section class="panel" id="panel-site">
+      <div class="panel-head">
+        <div>
+          <div class="eyebrow">SITE SETTINGS</div>
+          <h2 class="serif">サイト設定</h2>
+          <p>ロゴ・配色・フォント・トップの見出しブロック・フッター文言・BGM音源のパスを設定します。</p>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn primary" id="siteDownload">JSONをダウンロード</button>
+        </div>
+      </div>
+
+      <form id="siteForm">
+        <div class="field"><label>ロゴ(前半)</label><input type="text" id="s-logoPrefix" placeholder="THE"></div>
+        <div class="field"><label>ロゴ(強調部分・アクセント色で表示)</label><input type="text" id="s-logoAccent" placeholder="GALLERY"></div>
+
+        <div class="field">
+          <label>配色</label>
+          <div class="color-row">
+            <input type="color" id="s-colorInk">
+            <span style="font-size:.72rem; color:var(--dim);">文字色(ink)</span>
+          </div>
+          <div class="color-row" style="margin-top:10px;">
+            <input type="color" id="s-colorAccent">
+            <span style="font-size:.72rem; color:var(--dim);">アクセント色(accent)</span>
+          </div>
+          <div class="hint">補助文字色(dim)は文字色(ink)から自動生成されます(引き継ぎ指示書の「配色は3色のみ」というルールを保つため、個別指定はできません)。</div>
+        </div>
+
+        <div class="field"><label>フォント指定(font-family)</label><input type="text" id="s-fontStack"></div>
+
+        <div class="field"><label>見出しブロック: アイキャッチ</label><input type="text" id="s-introEyebrow" placeholder="PERMANENT COLLECTION"></div>
+        <div class="field"><label>見出しブロック: 見出し</label><input type="text" id="s-introHeading"></div>
+        <div class="field"><label>見出しブロック: 本文</label><textarea id="s-introBody"></textarea></div>
+
+        <div class="field"><label>フッター: 免責文言</label><textarea id="s-footerDisclaimer"></textarea></div>
+        <div class="field"><label>フッター: BGMクレジット</label><textarea id="s-footerCredit"></textarea></div>
+        <div class="field"><label>フッター: コピーライト表記</label><input type="text" id="s-footerCopy"></div>
+
+        <div class="field"><label>BGM音源ファイルのパス</label><input type="text" id="s-bgmFile" placeholder="assets/audio/bgm-kyoto-garden.mp3">
+          <div class="hint">ファイル本体はこの管理画面からアップロードできません。指定したパスに実際の音声ファイルを配置してください。</div>
+        </div>
+      </form>
+    </section>
+
+    <!-- ============ スライドレイアウトタブ ============ -->
+    <section class="panel" id="panel-layout">
+      <div class="panel-head">
+        <div>
+          <div class="eyebrow">HERO LAYOUT</div>
+          <h2 class="serif">スライドレイアウト</h2>
+          <p>スライドショー内の5要素(タイトル/作者・年/解説文/流派タグ/技法ラベル)の配置を、全スライド共通の1テンプレートとして編集します。ボックスをドラッグで移動、右下の■で幅を変更できます。右側のパネルからは数値で正確に指定することもできます。</p>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn" id="layoutReset">初期値に戻す</button>
+          <button type="button" class="btn primary" id="layoutDownload">JSONをダウンロード</button>
+        </div>
+      </div>
+      <div class="layout-editor-wrap">
+        <div class="layout-canvas-wrap">
+          <div class="layout-canvas" id="layoutCanvas"></div>
+        </div>
+        <div class="layout-side" id="layoutSide"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="editor-backdrop" id="editorBackdrop"></div>
+
+  <!-- 作品編集フォーム -->
+  <aside class="editor" id="workEditor" aria-hidden="true">
+    <button type="button" class="editor-close" id="workEditorClose" aria-label="閉じる">×</button>
+    <h3 class="serif" id="workEditorTitle">作品を編集</h3>
+    <form id="workForm">
+      <div class="field"><label>タイトル</label><input type="text" id="w-title" required></div>
+      <div class="field"><label>作者</label><input type="text" id="w-artist" required>
+        <div class="hint">例: Katsushika Hokusai (葛飾北斎)。既存作者と同一人物にする場合は、表記(英語名部分)を完全一致させてください。</div>
+      </div>
+      <div class="field"><label>年代(表示用)</label><input type="text" id="w-year" placeholder='例: c. 1830–1832' required></div>
+      <div class="field"><label>年代(絞り込み用の数値)</label><input type="number" id="w-yearNum" required></div>
+      <div class="field"><label>時代区分</label><select id="w-era"></select></div>
+      <div class="field"><label>流派・技法(複数選択可)</label><div class="chip-check-row" id="w-schools"></div></div>
+      <div class="field"><label>技法・サイズ</label><input type="text" id="w-medium" placeholder="WOODBLOCK PRINT (NISHIKI-E) · 25.7 × 37.9 CM" required>
+        <div class="hint">" · "(半角スペース+中点+半角スペース)で技法とサイズを区切ってください。</div>
+      </div>
+      <div class="field"><label>収蔵美術館</label><input type="text" id="w-venue" required></div>
+      <div class="field"><label>画像調達元</label><select id="w-source">
+        <option value="wikimedia">wikimedia</option>
+        <option value="loc">loc</option>
+        <option value="mfa-boston">mfa-boston</option>
+        <option value="rijksmuseum">rijksmuseum</option>
+        <option value="lacma">lacma</option>
+      </select></div>
+      <div class="field"><label>画像ファイル/URL</label><input type="text" id="w-file" required>
+        <div class="hint">wikimedia選択時はCommonsのファイル名(File:を除く)、それ以外は画像への直接URLを入力してください。実在するファイルか必ず確認してから保存してください。</div>
+      </div>
+      <div class="field"><label>解説文(キャプション)</label><textarea id="w-caption" required></textarea></div>
+      <div class="editor-footer btn-row">
+        <button type="submit" class="btn primary">この内容で保存</button>
+        <button type="button" class="btn danger" id="workDeleteBtn">この作品を削除</button>
+      </div>
+    </form>
+  </aside>
+
+  <!-- 作者編集フォーム -->
+  <aside class="editor" id="artistEditor" aria-hidden="true">
+    <button type="button" class="editor-close" id="artistEditorClose" aria-label="閉じる">×</button>
+    <h3 class="serif" id="artistEditorTitle">作者を編集</h3>
+    <form id="artistForm">
+      <div class="field"><label>名前</label><input type="text" id="a-name" placeholder="Katsushika Hokusai (葛飾北斎)" required></div>
+      <div class="field"><label>生没年・出身</label><input type="text" id="a-dates" placeholder="1760–1849 · 江戸(現・東京)生まれ" required></div>
+
+      <div class="field">
+        <label>肖像画像</label>
+        <div class="portrait-preview-row">
+          <div class="portrait-preview" id="a-portraitPreviewBox">
+            <span id="a-portraitPreviewEmpty">未設定</span>
+            <img id="a-portraitPreviewImg" style="display:none;" alt="">
+          </div>
+          <div class="portrait-preview-actions">
+            <label class="btn" style="display:inline-block;">
+              画像ファイルを選ぶ
+              <input type="file" id="a-portraitUpload" accept="image/*" style="display:none;">
+            </label>
+            <button type="button" class="btn" id="a-portraitClear">クリア</button>
+          </div>
+        </div>
+        <div class="hint">選んだ画像はその場で自動的に縮小され、作者データ(JSON)に直接埋め込まれます。別途ファイルを配置する必要はありません。</div>
+      </div>
+      <details class="field">
+        <summary style="cursor:pointer; font-size:.68rem; letter-spacing:.1em; color:var(--dim); margin-bottom:8px;">代わりに外部URLを指定する(上級者向け)</summary>
+        <div class="field"><label>肖像画像の調達元</label><select id="a-portraitSource">
+          <option value="">未設定</option>
+          <option value="wikimedia">wikimedia</option>
+          <option value="loc">loc</option>
+          <option value="mfa-boston">mfa-boston</option>
+          <option value="rijksmuseum">rijksmuseum</option>
+          <option value="lacma">lacma</option>
+        </select></div>
+        <div class="field"><label>肖像画像ファイル名/URL</label><input type="text" id="a-portraitFile">
+          <div class="hint">実在するファイルか必ず確認してから保存してください。上のアップロード欄に画像を選んだ場合は、そちらが優先されます。</div>
+        </div>
+      </details>
+
+      <div class="field"><label>経歴</label><textarea id="a-bio" required></textarea></div>
+      <div class="field"><label>代表作</label><input type="text" id="a-works" required></div>
+      <div class="field"><label>現代の評価</label><textarea id="a-legacy" required></textarea></div>
+      <div class="editor-footer btn-row">
+        <button type="submit" class="btn primary">この内容で保存</button>
+        <button type="button" class="btn danger" id="artistDeleteBtn">この作者を削除</button>
+      </div>
+    </form>
+  </aside>
+
+  <div class="toast" id="toast"></div>
+  </div><!-- /#app -->
+
+<script>
+/* =======================================================================
+   簡易パスワードゲート。SHA-256ハッシュ比較のみで、サーバー側の認証は行っていない
+   (GitHub Pages等の静的ホスティングにはサーバーサイド認証の仕組みがないため)。
+   view-sourceで解析すれば突破できる程度の、簡易的な目隠しとして運用すること。
+   パスワードを変更する場合は、下のPASSWORD_HASHを新しいパスワードのSHA-256ハッシュに置き換える。
+   (Node.jsがあれば: node -e "console.log(require('crypto').createHash('sha256').update('新パスワード').digest('hex'))")
+   ======================================================================= */
+const PASSWORD_HASH = '91ec9a9341f2bfbe35e133165ba3b84f07acce1fba8494de67569d21a0d809f7'; // 初期パスワード: gallery2026
+const AUTH_SESSION_KEY = 'gallery-admin-auth';
+
+async function sha256Hex(text){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function showApp(){
+  document.getElementById('authGate').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+if (sessionStorage.getItem(AUTH_SESSION_KEY) === PASSWORD_HASH){
+  showApp();
+} else {
+  document.getElementById('authForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('authPassword').value;
+    const hash = await sha256Hex(input);
+    if (hash === PASSWORD_HASH){
+      sessionStorage.setItem(AUTH_SESSION_KEY, hash);
+      showApp();
+    } else {
+      document.getElementById('authError').textContent = 'パスワードが違います';
+      document.getElementById('authPassword').value = '';
+      document.getElementById('authPassword').focus();
+    }
+  });
+}
+
+const ERAS = [
+  { id:'genroku',       label:'元禄期(1688–1704)' },
+  { id:'horeki-temmei', label:'宝暦・天明期(1751–1789)' },
+  { id:'kasei',         label:'化政期(1804–1830)' },
+  { id:'bakumatsu',     label:'幕末期(1853–1868)' },
+  { id:'other',         label:'その他の時代' },
+];
+const SCHOOLS = [
+  { id:'ukiyo-e',       label:'浮世絵' },
+  { id:'kano',          label:'狩野派' },
+  { id:'rinpa',         label:'琳派' },
+  { id:'yamato-e-tosa', label:'大和絵・土佐派' },
+  { id:'nanga',         label:'文人画・南画' },
+];
+
+let WORKS = [];
+let ARTISTS = [];
+
+const commonsUrl = (file, width) => `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=${width}`;
+function imageUrl(source, file, width){
+  if (!file) return '';
+  if (source === 'wikimedia') return commonsUrl(file, width);
+  return file;
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function downloadJSON(filename, data){
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast(`${filename} をダウンロードしました`);
+}
+
+/* =======================================================================
+   タブ切り替え
+   ======================================================================= */
+document.getElementById('tabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-tab]');
+  if (!btn) return;
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b === btn));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === `panel-${btn.dataset.tab}`));
+});
+
+/* =======================================================================
+   共通: 編集パネルの開閉
+   ======================================================================= */
+const editorBackdrop = document.getElementById('editorBackdrop');
+function openEditor(el){
+  el.classList.add('open');
+  editorBackdrop.classList.add('open');
+  el.setAttribute('aria-hidden', 'false');
+}
+function closeEditors(){
+  document.querySelectorAll('.editor').forEach(el => { el.classList.remove('open'); el.setAttribute('aria-hidden', 'true'); });
+  editorBackdrop.classList.remove('open');
+}
+editorBackdrop.addEventListener('click', closeEditors);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeEditors(); });
+
+/* =======================================================================
+   作品(Works)
+   ======================================================================= */
+const worksTbody = document.getElementById('worksTbody');
+const workEditor = document.getElementById('workEditor');
+let editingWorkIndex = null; // nullは新規追加
+
+document.getElementById('w-era').innerHTML = ERAS.map(e => `<option value="${e.id}">${e.label}</option>`).join('');
+document.getElementById('w-schools').innerHTML = SCHOOLS.map(s => `
+  <label class="chip-check"><input type="checkbox" value="${s.id}"><span>${s.label}</span></label>
+`).join('');
+
+function renderWorksTable(){
+  document.getElementById('worksCount').textContent = WORKS.length;
+  worksTbody.innerHTML = WORKS.length ? WORKS.map((w, i) => `
+    <tr>
+      <td><img class="thumb" src="${imageUrl(w.source, w.file, 200)}" alt="" loading="lazy"></td>
+      <td>${w.title}</td>
+      <td>${w.artist}</td>
+      <td>${w.year}</td>
+      <td class="row-actions"><button type="button" data-edit="${i}">編集</button></td>
+    </tr>
+  `).join('') : `<tr class="empty-row"><td colspan="5">作品がまだありません</td></tr>`;
+}
+worksTbody.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-edit]');
+  if (!btn) return;
+  openWorkEditor(Number(btn.dataset.edit));
+});
+
+function openWorkEditor(index){
+  editingWorkIndex = index;
+  const isNew = index === null;
+  const w = isNew ? {} : WORKS[index];
+  document.getElementById('workEditorTitle').textContent = isNew ? '新規作品を追加' : '作品を編集';
+  document.getElementById('w-title').value = w.title || '';
+  document.getElementById('w-artist').value = w.artist || '';
+  document.getElementById('w-year').value = w.year || '';
+  document.getElementById('w-yearNum').value = w.yearNum ?? '';
+  document.getElementById('w-era').value = w.era || 'kasei';
+  document.querySelectorAll('#w-schools input').forEach(cb => { cb.checked = (w.schools || []).includes(cb.value); });
+  document.getElementById('w-medium').value = w.medium || '';
+  document.getElementById('w-venue').value = w.venue || '';
+  document.getElementById('w-source').value = w.source || 'wikimedia';
+  document.getElementById('w-file').value = w.file || '';
+  document.getElementById('w-caption').value = w.caption || '';
+  document.getElementById('workDeleteBtn').style.display = isNew ? 'none' : '';
+  openEditor(workEditor);
+}
+document.getElementById('workEditorClose').addEventListener('click', closeEditors);
+document.getElementById('worksAddBtn').addEventListener('click', () => openWorkEditor(null));
+
+document.getElementById('workForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const schools = [...document.querySelectorAll('#w-schools input:checked')].map(cb => cb.value);
+  if (schools.length === 0){ toast('流派・技法を1つ以上選択してください'); return; }
+  const record = {
+    title: document.getElementById('w-title').value.trim(),
+    artist: document.getElementById('w-artist').value.trim(),
+    year: document.getElementById('w-year').value.trim(),
+    yearNum: Number(document.getElementById('w-yearNum').value),
+    era: document.getElementById('w-era').value,
+    schools,
+    medium: document.getElementById('w-medium').value.trim(),
+    venue: document.getElementById('w-venue').value.trim(),
+    source: document.getElementById('w-source').value,
+    file: document.getElementById('w-file').value.trim(),
+    caption: document.getElementById('w-caption').value.trim(),
+  };
+  if (editingWorkIndex === null) WORKS.push(record);
+  else WORKS[editingWorkIndex] = record;
+  renderWorksTable();
+  closeEditors();
+  toast('作品を保存しました(サイトに反映するには下の「JSONをダウンロード」も忘れずに)');
+});
+document.getElementById('workDeleteBtn').addEventListener('click', () => {
+  if (editingWorkIndex === null) return;
+  if (!confirm('この作品を削除します。よろしいですか?')) return;
+  WORKS.splice(editingWorkIndex, 1);
+  renderWorksTable();
+  closeEditors();
+  toast('作品を削除しました');
+});
+document.getElementById('worksDownload').addEventListener('click', () => downloadJSON('works.json', WORKS));
+
+/* =======================================================================
+   作者(Artists)
+   ======================================================================= */
+const artistsTbody = document.getElementById('artistsTbody');
+const artistEditor = document.getElementById('artistEditor');
+let editingArtistIndex = null;
+let uploadedPortraitDataUrl = null; // ファイルアップロード欄で選んだ画像(圧縮後のdata URL)。設定されていれば外部URL欄より優先する
+
+// 画像ファイルを縮小してJPEGのdata URLに変換する(JSONに直接埋め込むため、サイズを抑える)
+function readAndCompressImage(file, maxDim, quality){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height && width > maxDim){ height = Math.round(height * maxDim / width); width = maxDim; }
+        else if (height >= width && height > maxDim){ width = Math.round(width * maxDim / height); height = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error('ファイルの読み込みに失敗しました'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function setPortraitPreview(dataUrlOrUrl){
+  const img = document.getElementById('a-portraitPreviewImg');
+  const empty = document.getElementById('a-portraitPreviewEmpty');
+  if (dataUrlOrUrl){
+    img.src = dataUrlOrUrl;
+    img.style.display = '';
+    empty.style.display = 'none';
+  } else {
+    img.removeAttribute('src');
+    img.style.display = 'none';
+    empty.style.display = '';
+  }
+}
+
+document.getElementById('a-portraitUpload').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    uploadedPortraitDataUrl = await readAndCompressImage(file, 480, 0.85);
+    setPortraitPreview(uploadedPortraitDataUrl);
+    toast('画像を読み込みました(保存を押すと反映されます)');
+  } catch(err){
+    toast(err.message);
+  }
+  e.target.value = '';
+});
+document.getElementById('a-portraitClear').addEventListener('click', () => {
+  uploadedPortraitDataUrl = null;
+  document.getElementById('a-portraitSource').value = '';
+  document.getElementById('a-portraitFile').value = '';
+  setPortraitPreview(null);
+});
+
+function renderArtistsTable(){
+  document.getElementById('artistsCount').textContent = ARTISTS.length;
+  artistsTbody.innerHTML = ARTISTS.length ? ARTISTS.map((a, i) => `
+    <tr>
+      <td>${a.portraitFile ? `<img class="thumb" src="${imageUrl(a.portraitSource, a.portraitFile, 200)}" alt="" loading="lazy">` : '<div class="thumb" style="display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:.6rem;">なし</div>'}</td>
+      <td>${a.name}</td>
+      <td>${a.dates}</td>
+      <td class="row-actions"><button type="button" data-edit="${i}">編集</button></td>
+    </tr>
+  `).join('') : `<tr class="empty-row"><td colspan="4">作者がまだいません</td></tr>`;
+}
+artistsTbody.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-edit]');
+  if (!btn) return;
+  openArtistEditor(Number(btn.dataset.edit));
+});
+
+function openArtistEditor(index){
+  editingArtistIndex = index;
+  const isNew = index === null;
+  const a = isNew ? {} : ARTISTS[index];
+  document.getElementById('artistEditorTitle').textContent = isNew ? '新規作者を追加' : '作者を編集';
+  document.getElementById('a-name').value = a.name || '';
+  document.getElementById('a-dates').value = a.dates || '';
+  document.getElementById('a-portraitSource').value = (a.portraitSource && a.portraitSource !== 'upload') ? a.portraitSource : '';
+  document.getElementById('a-portraitFile').value = (a.portraitSource && a.portraitSource !== 'upload') ? (a.portraitFile || '') : '';
+  document.getElementById('a-bio').value = a.bio || '';
+  document.getElementById('a-works').value = a.works || '';
+  document.getElementById('a-legacy').value = a.legacy || '';
+  document.getElementById('artistDeleteBtn').style.display = isNew ? 'none' : '';
+  // 既存の肖像がアップロード画像(data URL)ならそのまま維持し、外部URL指定ならプレビューだけ表示する
+  uploadedPortraitDataUrl = (a.portraitSource === 'upload') ? a.portraitFile : null;
+  setPortraitPreview(a.portraitFile ? imageUrl(a.portraitSource, a.portraitFile, 200) : null);
+  openEditor(artistEditor);
+}
+document.getElementById('artistEditorClose').addEventListener('click', closeEditors);
+document.getElementById('artistsAddBtn').addEventListener('click', () => openArtistEditor(null));
+
+document.getElementById('artistForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  // アップロード画像があればそちらを優先。なければ外部URL欄の値を使う
+  const externalSource = document.getElementById('a-portraitSource').value || null;
+  const externalFile = document.getElementById('a-portraitFile').value.trim() || null;
+  const portraitSource = uploadedPortraitDataUrl ? 'upload' : (externalFile ? externalSource : null);
+  const portraitFile = uploadedPortraitDataUrl || externalFile;
+  const record = {
+    name: document.getElementById('a-name').value.trim(),
+    dates: document.getElementById('a-dates').value.trim(),
+    portraitSource,
+    portraitFile,
+    bio: document.getElementById('a-bio').value.trim(),
+    works: document.getElementById('a-works').value.trim(),
+    legacy: document.getElementById('a-legacy').value.trim(),
+  };
+  if (editingArtistIndex === null) ARTISTS.push(record);
+  else ARTISTS[editingArtistIndex] = record;
+  renderArtistsTable();
+  closeEditors();
+  toast('作者を保存しました(サイトに反映するには下の「JSONをダウンロード」も忘れずに)');
+});
+document.getElementById('artistDeleteBtn').addEventListener('click', () => {
+  if (editingArtistIndex === null) return;
+  if (!confirm('この作者を削除します。よろしいですか?')) return;
+  ARTISTS.splice(editingArtistIndex, 1);
+  renderArtistsTable();
+  closeEditors();
+  toast('作者を削除しました');
+});
+document.getElementById('artistsDownload').addEventListener('click', () => downloadJSON('artists.json', ARTISTS));
+
+/* =======================================================================
+   サイト設定(Site Settings)
+   ======================================================================= */
+let SITE = {};
+
+function hexToRgbaDim(hex, alpha){
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || '');
+  if (!m) return `rgba(244,239,228,${alpha})`;
+  const [r, g, b] = [m[1], m[2], m[3]].map(h => parseInt(h, 16));
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function populateSiteForm(){
+  document.getElementById('s-logoPrefix').value = SITE.logoPrefix || '';
+  document.getElementById('s-logoAccent').value = SITE.logoAccent || '';
+  document.getElementById('s-colorInk').value = SITE.colorInk || '#f4efe4';
+  document.getElementById('s-colorAccent').value = SITE.colorAccent || '#d7b56a';
+  document.getElementById('s-fontStack').value = SITE.fontStack || '';
+  document.getElementById('s-introEyebrow').value = SITE.introEyebrow || '';
+  document.getElementById('s-introHeading').value = SITE.introHeading || '';
+  document.getElementById('s-introBody').value = SITE.introBody || '';
+  document.getElementById('s-footerDisclaimer').value = SITE.footerDisclaimer || '';
+  document.getElementById('s-footerCredit').value = SITE.footerCredit || '';
+  document.getElementById('s-footerCopy').value = SITE.footerCopy || '';
+  document.getElementById('s-bgmFile').value = SITE.bgmFile || '';
+}
+
+document.getElementById('siteDownload').addEventListener('click', () => {
+  const colorInk = document.getElementById('s-colorInk').value;
+  const record = {
+    logoPrefix: document.getElementById('s-logoPrefix').value.trim(),
+    logoAccent: document.getElementById('s-logoAccent').value.trim(),
+    colorInk,
+    colorDim: hexToRgbaDim(colorInk, 0.6),
+    colorAccent: document.getElementById('s-colorAccent').value,
+    fontStack: document.getElementById('s-fontStack').value.trim(),
+    introEyebrow: document.getElementById('s-introEyebrow').value.trim(),
+    introHeading: document.getElementById('s-introHeading').value.trim(),
+    introBody: document.getElementById('s-introBody').value.trim(),
+    footerDisclaimer: document.getElementById('s-footerDisclaimer').value.trim(),
+    footerCredit: document.getElementById('s-footerCredit').value.trim(),
+    footerCopy: document.getElementById('s-footerCopy').value.trim(),
+    bgmFile: document.getElementById('s-bgmFile').value.trim(),
+  };
+  downloadJSON('site-settings.json', record);
+});
+
+/* =======================================================================
+   スライドレイアウト(Hero Layout): ドラッグ&リサイズで5要素の位置を編集する
+   ======================================================================= */
+let HERO_LAYOUT = {};
+let DEFAULT_HERO_LAYOUT = null; // 「初期値に戻す」用に読み込み直後の値を保持
+let selectedLayoutKey = 'title';
+const LAYOUT_KEYS = [
+  { key:'title',   label:'タイトル' },
+  { key:'sub',     label:'作者・年' },
+  { key:'caption', label:'解説文' },
+  { key:'schools', label:'流派タグ' },
+  { key:'specs',   label:'技法ラベル' },
+];
+const layoutCanvas = document.getElementById('layoutCanvas');
+const layoutSide = document.getElementById('layoutSide');
+
+function renderLayoutCanvas(){
+  layoutCanvas.innerHTML = LAYOUT_KEYS.map(k => {
+    const L = HERO_LAYOUT[k.key] || { x:6, y:16, width:40, rotation:0 };
+    return `<div class="layout-box${k.key === selectedLayoutKey ? ' selected' : ''}" data-key="${k.key}"
+      style="left:${L.x}%; top:${L.y}%; width:${L.width}%; transform:rotate(${L.rotation || 0}deg);">
+      <span class="layout-box-label">${k.label}</span>
+      <span class="resize-handle" data-resize="${k.key}"></span>
+    </div>`;
+  }).join('');
+}
+
+function renderLayoutSide(){
+  layoutSide.innerHTML = LAYOUT_KEYS.map(k => {
+    const L = HERO_LAYOUT[k.key] || { x:6, y:16, width:40, rotation:0 };
+    return `
+      <div class="layout-field-group${k.key === selectedLayoutKey ? ' selected' : ''}" data-key="${k.key}">
+        <div class="lfg-title">${k.label}</div>
+        <div class="lfg-row">
+          <div><label>X(%)</label><input type="number" step="1" data-prop="x" value="${L.x}"></div>
+          <div><label>Y(%)</label><input type="number" step="1" data-prop="y" value="${L.y}"></div>
+        </div>
+        <div class="lfg-row">
+          <div><label>幅(%)</label><input type="number" step="1" data-prop="width" value="${L.width}"></div>
+          <div><label>回転(度)</label><input type="number" step="1" data-prop="rotation" value="${L.rotation || 0}"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function selectLayoutKey(key){
+  selectedLayoutKey = key;
+  document.querySelectorAll('.layout-box').forEach(el => el.classList.toggle('selected', el.dataset.key === key));
+  document.querySelectorAll('.layout-field-group').forEach(el => el.classList.toggle('selected', el.dataset.key === key));
+}
+
+// 数値パネルからの入力
+layoutSide.addEventListener('input', (e) => {
+  const input = e.target.closest('input[data-prop]');
+  if (!input) return;
+  const key = input.closest('.layout-field-group').dataset.key;
+  HERO_LAYOUT[key][input.dataset.prop] = Number(input.value);
+  renderLayoutCanvas();
+});
+layoutSide.addEventListener('click', (e) => {
+  const group = e.target.closest('.layout-field-group');
+  if (group) selectLayoutKey(group.dataset.key);
+});
+
+// キャンバス上のドラッグ移動・リサイズ
+let dragState = null;
+layoutCanvas.addEventListener('mousedown', (e) => {
+  const box = e.target.closest('.layout-box');
+  if (!box) return;
+  const key = box.dataset.key;
+  selectLayoutKey(key);
+  renderLayoutSide();
+  const rect = layoutCanvas.getBoundingClientRect();
+  const L = HERO_LAYOUT[key];
+  if (e.target.closest('.resize-handle')){
+    dragState = { type:'resize', key, startX:e.clientX, startWidthPct:L.width, canvasWidth:rect.width };
+  } else {
+    dragState = { type:'move', key, startX:e.clientX, startY:e.clientY, startXPct:L.x, startYPct:L.y, canvasWidth:rect.width, canvasHeight:rect.height };
+  }
+  e.preventDefault();
+});
+document.addEventListener('mousemove', (e) => {
+  if (!dragState) return;
+  const L = HERO_LAYOUT[dragState.key];
+  if (dragState.type === 'move'){
+    const dxPct = (e.clientX - dragState.startX) / dragState.canvasWidth * 100;
+    const dyPct = (e.clientY - dragState.startY) / dragState.canvasHeight * 100;
+    L.x = Math.round(Math.max(0, Math.min(96, dragState.startXPct + dxPct)));
+    L.y = Math.round(Math.max(0, Math.min(96, dragState.startYPct + dyPct)));
+  } else {
+    const dxPct = (e.clientX - dragState.startX) / dragState.canvasWidth * 100;
+    L.width = Math.round(Math.max(8, Math.min(94, dragState.startWidthPct + dxPct)));
+  }
+  renderLayoutCanvas();
+  renderLayoutSide();
+});
+document.addEventListener('mouseup', () => { dragState = null; });
+
+document.getElementById('layoutReset').addEventListener('click', () => {
+  if (!DEFAULT_HERO_LAYOUT) return;
+  if (!confirm('編集内容を破棄して読み込み時の状態に戻します。よろしいですか?')) return;
+  HERO_LAYOUT = JSON.parse(JSON.stringify(DEFAULT_HERO_LAYOUT));
+  renderLayoutCanvas();
+  renderLayoutSide();
+});
+document.getElementById('layoutDownload').addEventListener('click', () => downloadJSON('hero-layout.json', HERO_LAYOUT));
+
+/* =======================================================================
+   初期化
+   ======================================================================= */
+async function init(){
+  const [works, artists, site, layout] = await Promise.all([
+    fetch('data/works.json').then(r => r.json()),
+    fetch('data/artists.json').then(r => r.json()),
+    fetch('data/site-settings.json').then(r => r.json()),
+    fetch('data/hero-layout.json').then(r => r.json()),
+  ]);
+  WORKS = works;
+  ARTISTS = artists;
+  SITE = site;
+  HERO_LAYOUT = layout;
+  DEFAULT_HERO_LAYOUT = JSON.parse(JSON.stringify(layout));
+  renderWorksTable();
+  renderArtistsTable();
+  populateSiteForm();
+  if (WORKS[0]) layoutCanvas.style.backgroundImage = `url('${imageUrl(WORKS[0].source, WORKS[0].file, 1200)}')`;
+  renderLayoutCanvas();
+  renderLayoutSide();
+}
+init();
+</script>
+</body>
+</html>

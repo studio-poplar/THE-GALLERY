@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THE GALLERY — Virtual Museum Experience</title>
+<style>
+  :root{
+    --ink:#f4efe4;
+    --dim: rgba(244,239,228,.6);
+    --accent:#d7b56a;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{
+    background:#0a0a0b;
+    color:var(--ink);
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+    overflow-x:clip;
+  }
+  .serif{ font-family: Georgia, "Times New Roman", "Hiragino Mincho ProN", serif; }
+  button{ font-family:inherit; }
+  :focus-visible{ outline:1px solid var(--accent); outline-offset:2px; }
+
+  /* ============ ヘッダー(常に最前面 / z-index:50) ============ */
+  header{
+    position:fixed; top:0; left:0; right:0; z-index:50;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:26px 5%;
+  }
+  /* ロゴ・各操作ボタンはカーソルを合わせた時だけ表示。ホバーを検知できるデバイスのみに限定し、
+     タッチ操作しかできないモバイルでは常時表示のままにする(ホバーが存在しないため操作不能になるのを防ぐ)。 */
+  @media (hover:hover){
+    header{ opacity:0; transition:opacity .35s ease; pointer-events:auto; }
+    header:hover, header:focus-within, header.force-visible{ opacity:1; }
+    /* CAPTIONS OFF操作の直後は、カーソルがまだheader上に残っていても即座に隠す(:hoverより優先) */
+    header.force-hidden{ opacity:0; }
+  }
+  header .logo{ font-size:1.05rem; letter-spacing:.32em; font-weight:400; }
+  header .logo .accent{ color:var(--accent); }
+
+  /* header内の操作クラスタ(ハンバーガー+一時停止/BGM/表示モード)。
+     header自体はpointer-events:noneのため、クリック可能な要素にだけ個別にautoを付与する。 */
+  .header-actions{ display:flex; align-items:center; gap:10px; }
+
+  .hero-btn{
+    pointer-events:auto; cursor:pointer;
+    font-size:.64rem; letter-spacing:.12em; color:var(--ink);
+    border:1px solid rgba(244,239,228,.4); background:transparent;
+    padding:9px 13px; white-space:nowrap;
+  }
+  .hero-btn .dot{ display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--accent); margin-right:7px; }
+  .hero-btn.is-off .dot{ background:rgba(244,239,228,.35); }
+  .hero-btn:hover{ border-color:var(--accent); }
+
+  header .menu-btn{
+    width:38px; height:38px; border:1px solid rgba(244,239,228,.4); border-radius:50%;
+    display:flex; align-items:center; justify-content:center; gap:3px; flex-direction:column;
+    pointer-events:auto; cursor:pointer; background:transparent;
+  }
+  header .menu-btn i{ display:block; width:14px; height:1px; background:var(--ink); transition:transform .3s ease, opacity .3s ease; }
+  header .menu-btn.is-open i:nth-child(1){ transform:translateY(4px) rotate(45deg); }
+  header .menu-btn.is-open i:nth-child(2){ opacity:0; }
+  header .menu-btn.is-open i:nth-child(3){ transform:translateY(-4px) rotate(-45deg); }
+
+  /* ============ ヒーロー: 絵画スライドショー ============ */
+  .hero{ position:relative; height:100vh; width:100%; overflow:hidden; background:#050505; }
+  .slide{
+    position:absolute; inset:0; opacity:0; transition:opacity 1.1s ease;
+    pointer-events:none;
+  }
+  .slide.active{ opacity:1; z-index:2; pointer-events:auto; }
+  .slide .bg{
+    position:absolute; inset:-3%; /* Ken Burnsでのはみ出し分の余白 */
+    background-size:cover; background-position:center;
+    transform:scale(1);
+    filter:saturate(1.02) contrast(1.02);
+  }
+  .slide.active .bg{ animation:kenburns 8s linear forwards; }
+  @keyframes kenburns{
+    from{ transform:scale(1) translate(0,0); }
+    to{ transform:scale(1.13) translate(-1.4%,-1%); }
+  }
+  /* 一時停止中: Ken Burnsと進捗バーのアニメーションを両方止める */
+  .hero.paused .slide.active .bg{ animation-play-state:paused; }
+  .hero.paused .progress .bar.filling i{ animation-play-state:paused; }
+
+  .vignette{
+    position:absolute; inset:0; z-index:3; pointer-events:none;
+    background:
+      radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 40%, rgba(0,0,0,.55) 100%),
+      linear-gradient(180deg, rgba(0,0,0,.4) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 68%, rgba(0,0,0,.55) 100%);
+  }
+
+  /* スライド内テキスト5要素(タイトル/作者・年/解説文/流派タグ/技法ラベル)。
+     CMSのレイアウトテンプレート(data/hero-layout.json)に基づき、JS側でleft/top/width/rotationを
+     要素ごとに個別設定する ―― 全スライド共通の1テンプレートを適用するPowerPoint風の自由配置。
+     文字が乗る範囲だけに敷くドット地のscrimは、絵画が完全に隠れないよう半透明に留める。 */
+  .slide .el{ position:absolute; z-index:6; }
+  .el-title, .el-sub, .el-caption, .el-specs{
+    background-color:rgba(6,6,7,.5);
+    background-image:radial-gradient(rgba(244,239,228,.35) 1px, transparent 1.3px);
+    background-size:7px 7px;
+    backdrop-filter:blur(1.5px);
+    padding:14px 18px;
+  }
+  .el-title{ font-size:clamp(1.7rem,4.4vw,3rem); font-weight:400; line-height:1.15; }
+  .el-sub{ font-size:.82rem; letter-spacing:.1em; color:var(--dim); }
+  .el-caption{ font-size:.8rem; line-height:1.9; color:var(--dim); }
+  .el-schools{ display:flex; flex-wrap:wrap; gap:8px; }
+  .el-schools span{ font-size:.62rem; letter-spacing:.1em; color:var(--accent); border:1px solid rgba(215,181,106,.5); padding:4px 9px; background:rgba(6,6,7,.5); }
+  .el-specs{ font-size:.68rem; letter-spacing:.16em; color:var(--dim); line-height:1.9; }
+
+  /* 画像のみモード: 解説要素5点と進捗バーを非表示。Ken Burnsは維持 */
+  .hero.mode-image-only .el,
+  .hero.mode-image-only .progress{ display:none; }
+
+  /* スライド進捗インジケーター */
+  .progress{
+    position:absolute; left:50%; bottom:3.2%; transform:translateX(-50%); z-index:10;
+    display:flex; gap:8px; flex-wrap:wrap; justify-content:center; max-width:88%;
+  }
+  .progress .bar{
+    width:34px; height:2px; background:rgba(244,239,228,.25); position:relative; overflow:hidden; cursor:pointer;
+  }
+  .progress .bar i{
+    position:absolute; inset:0; background:var(--accent); transform:scaleX(0); transform-origin:left;
+  }
+  .progress .bar.done i{ transform:scaleX(1); }
+  .progress .bar.filling i{ animation:barfill 8s linear forwards; }
+  @keyframes barfill{ from{ transform:scaleX(0); } to{ transform:scaleX(1); } }
+
+  .hero-empty{
+    display:none; position:absolute; inset:0; z-index:7;
+    align-items:center; justify-content:center; flex-direction:column; gap:10px;
+    text-align:center; padding:0 6%;
+  }
+  .hero-empty.show{ display:flex; }
+  .hero-empty .t{ font-size:1.1rem; }
+  .hero-empty .s{ font-size:.78rem; color:var(--dim); letter-spacing:.06em; }
+
+  /* ============ フィルターパネル(z-index:60。ヘッダーより手前) ============ */
+  .filter-panel{
+    position:fixed; top:0; right:0; height:100vh; width:min(420px,90vw); z-index:60;
+    background:rgba(8,8,9,.97); backdrop-filter:blur(6px);
+    border-left:1px solid rgba(244,239,228,.12);
+    padding:110px 32px 40px; overflow-y:auto;
+    transform:translateX(100%); transition:transform .4s ease;
+  }
+  .filter-panel.open{ transform:translateX(0); }
+  .filter-panel .eyebrow{ font-size:.68rem; letter-spacing:.22em; color:var(--accent); }
+  .filter-panel h3{ margin-top:10px; font-size:1.3rem; font-weight:400; }
+  .filter-panel .group{ margin-top:36px; }
+  .filter-panel .group-label{ font-size:.7rem; letter-spacing:.16em; color:var(--dim); }
+  .filter-panel select{
+    margin-top:14px; width:100%; background:transparent; color:var(--ink);
+    border:1px solid rgba(244,239,228,.35); padding:11px 12px; font-size:.82rem; font-family:inherit;
+  }
+  .filter-panel select option{ background:#111; color:var(--ink); }
+  .chip-row{ display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+  .chip{ position:relative; display:inline-flex; }
+  .chip input{ position:absolute; inset:0; opacity:0; width:100%; height:100%; margin:0; cursor:pointer; }
+  .chip span{
+    display:inline-flex; align-items:center; font-size:.66rem; letter-spacing:.08em; line-height:1.4;
+    padding:8px 12px; border:1px solid rgba(244,239,228,.32); color:var(--dim);
+  }
+  .chip input:checked + span{ color:var(--ink); border-color:var(--accent); }
+  .chip input:focus-visible + span{ outline:1px solid var(--accent); outline-offset:2px; }
+  .chip .dot{ display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--accent); margin-right:7px; flex:none; }
+  .filter-panel .count{ margin-top:32px; font-size:.72rem; letter-spacing:.06em; color:var(--dim); }
+  .filter-panel .reset{
+    margin-top:18px; background:transparent; border:1px solid rgba(244,239,228,.35); color:var(--ink);
+    font-size:.68rem; letter-spacing:.1em; padding:10px 16px; cursor:pointer;
+  }
+  .filter-panel .reset:hover{ border-color:var(--accent); }
+  .filter-backdrop{
+    position:fixed; inset:0; z-index:59; background:rgba(0,0,0,.4);
+    opacity:0; pointer-events:none; transition:opacity .4s ease;
+  }
+  .filter-backdrop.open{ opacity:1; pointer-events:auto; }
+
+  /* ============ 作品詳細モーダル(z-index:70。フィルターパネルより手前) ============ */
+  .detail-backdrop{
+    position:fixed; inset:0; z-index:69; background:rgba(0,0,0,.7);
+    opacity:0; pointer-events:none; transition:opacity .3s ease;
+  }
+  .detail-backdrop.open{ opacity:1; pointer-events:auto; }
+  .detail-modal{
+    position:fixed; z-index:70; top:50%; left:50%; transform:translate(-50%,-48%);
+    width:min(920px,92vw); max-height:88vh;
+    background:#0a0a0b; border:1px solid rgba(244,239,228,.15);
+    display:grid; grid-template-columns:1.1fr 1fr; overflow:hidden;
+    opacity:0; pointer-events:none; transition:opacity .3s ease, transform .3s ease;
+  }
+  .detail-modal.open{ opacity:1; pointer-events:auto; transform:translate(-50%,-50%); }
+  .detail-media{ background:#050505; min-height:0; }
+  .detail-media img{ width:100%; height:100%; object-fit:cover; display:block; max-height:88vh; }
+  .detail-body{ padding:44px 36px; overflow-y:auto; }
+  .detail-body .schools{ font-size:.66rem; letter-spacing:.14em; color:var(--accent); display:flex; gap:8px; flex-wrap:wrap; }
+  .detail-body h3{ margin-top:14px; font-size:1.5rem; font-weight:400; line-height:1.3; }
+  .detail-body .sub{ margin-top:8px; font-size:.8rem; letter-spacing:.08em; color:var(--dim); }
+  .detail-body .caption{ margin-top:20px; font-size:.85rem; line-height:1.9; color:var(--dim); }
+  .detail-body .specs{ margin-top:24px; font-size:.68rem; letter-spacing:.14em; color:var(--dim); line-height:1.9; }
+  .detail-body .specs b{ color:var(--ink); font-weight:500; }
+  .detail-body .venue{
+    margin-top:14px; display:inline-block; font-size:.66rem; letter-spacing:.14em; color:var(--ink);
+    border:1px solid rgba(244,239,228,.4); padding:8px 14px;
+  }
+  .detail-body .venue .dot{ display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--accent); margin-right:8px; }
+  .detail-close{
+    position:absolute; top:16px; right:16px; z-index:2;
+    width:34px; height:34px; border:1px solid rgba(244,239,228,.4); border-radius:50%;
+    background:rgba(10,10,11,.6); color:var(--ink); font-size:1.1rem; line-height:1; cursor:pointer;
+  }
+  .detail-close:hover{ border-color:var(--accent); }
+  @media (max-width:720px){
+    .detail-modal{ grid-template-columns:1fr; max-height:92vh; overflow-y:auto; }
+    .detail-media img{ max-height:40vh; }
+    .detail-body{ padding:32px 24px; }
+  }
+
+  /* ============ ギャラリー一覧セクション ============ */
+  .gallery-intro{ padding:120px 6% 40px; max-width:720px; }
+  .gallery-intro .eyebrow{ font-size:.7rem; letter-spacing:.24em; color:var(--accent); }
+  .gallery-intro h2{ margin-top:14px; font-size:clamp(1.6rem,3.4vw,2.4rem); font-weight:400; line-height:1.4; }
+  .gallery-intro p{ margin-top:16px; color:var(--dim); font-size:.88rem; line-height:1.8; max-width:560px; }
+
+  .grid{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr));
+    gap:2px; padding:0 2px 2px;
+  }
+  .card{
+    position:relative; aspect-ratio:4/5; overflow:hidden; cursor:pointer;
+    opacity:0; transform:translateY(24px); transition:opacity .8s ease, transform .8s ease;
+  }
+  .card.in{ opacity:1; transform:translateY(0); }
+  .card img{ width:100%; height:100%; object-fit:cover; display:block; filter:saturate(1.02); transition:transform .8s ease; }
+  .card:hover img{ transform:scale(1.06); }
+  .card .cinfo{
+    position:absolute; left:0; right:0; bottom:0; z-index:2; padding:22px;
+    background:linear-gradient(180deg, transparent, rgba(0,0,0,.75));
+  }
+  .card .cinfo .n{ font-size:.65rem; letter-spacing:.18em; color:var(--accent); }
+  .card .cinfo .t{ margin-top:6px; font-size:1.05rem; }
+  .card .cinfo .a{ margin-top:3px; font-size:.72rem; color:var(--dim); }
+
+  .grid-empty{ display:none; padding:60px 6%; color:var(--dim); font-size:.85rem; }
+  .grid-empty.show{ display:block; }
+
+  /* ============ 作者について セクション ============ */
+  .artists-intro{ padding:100px 6% 40px; max-width:720px; border-top:1px solid rgba(244,239,228,.12); margin-top:40px; }
+  .artists-intro .eyebrow{ font-size:.7rem; letter-spacing:.24em; color:var(--accent); }
+  .artists-intro h2{ margin-top:14px; font-size:clamp(1.6rem,3.4vw,2.4rem); font-weight:400; line-height:1.4; }
+  .artists-intro p{ margin-top:16px; color:var(--dim); font-size:.88rem; line-height:1.8; max-width:560px; }
+
+  .artists{ padding:0 6% 100px; display:flex; flex-direction:column; gap:2px; }
+  .artist{
+    display:grid; grid-template-columns:220px 1fr; gap:40px;
+    padding:40px 0; border-top:1px solid rgba(244,239,228,.12);
+  }
+  .artist:first-child{ border-top:none; }
+  .artist-portrait{ width:220px; height:220px; overflow:hidden; background:#111; }
+  .artist-portrait img{ width:100%; height:100%; object-fit:cover; display:block; filter:saturate(1.02) contrast(1.02); }
+  .artist-portrait .placeholder{
+    width:100%; height:100%; display:flex; align-items:center; justify-content:center;
+    background-color:rgba(6,6,7,.6);
+    background-image:radial-gradient(rgba(244,239,228,.18) 1px, transparent 1.3px);
+    background-size:9px 9px;
+  }
+  .artist-portrait .placeholder span{ font-size:3.2rem; color:var(--accent); opacity:.8; }
+  .artist-name{ font-size:1.3rem; font-weight:400; }
+  .artist-dates{ margin-top:6px; font-size:.72rem; letter-spacing:.12em; color:var(--dim); }
+  .artist-portrait-note{ margin-top:10px; font-size:.62rem; letter-spacing:.06em; color:var(--dim); line-height:1.7; max-width:210px; }
+  .artist-bio{ margin-top:16px; font-size:.85rem; line-height:1.9; color:var(--dim); max-width:640px; }
+  .artist-field{ margin-top:16px; font-size:.78rem; line-height:1.8; color:var(--dim); max-width:640px; }
+  .artist-field .lbl{ font-size:.66rem; letter-spacing:.16em; color:var(--accent); margin-right:10px; }
+  .artist-field b{ color:var(--ink); font-weight:500; }
+
+  footer{ padding:80px 6% 60px; border-top:1px solid rgba(244,239,228,.12); margin-top:60px; }
+  footer .fmain{ display:flex; flex-wrap:wrap; justify-content:space-between; gap:24px; }
+  footer .logo2{ font-size:1rem; letter-spacing:.28em; }
+  footer p{ color:var(--dim); font-size:.75rem; line-height:1.8; max-width:340px; }
+  footer .credit{ margin-top:14px; }
+  footer .copy{ margin-top:40px; color:rgba(244,239,228,.35); font-size:.7rem; letter-spacing:.05em; }
+
+  /* prefers-reduced-motion: Ken Burnsのズーム&パン、進捗バーの充填アニメーションを無効化 */
+  @media (prefers-reduced-motion: reduce){
+    .slide.active .bg{ animation:none; transform:scale(1.06); }
+    .progress .bar.filling i{ animation:none; transform:scaleX(1); }
+  }
+
+  /* ============ モバイル調整(〜640px) ============ */
+  @media (max-width:640px){
+    header{ padding:20px 5%; }
+    .header-actions{ gap:6px; }
+    .hero-btn{ padding:7px 9px; font-size:.58rem; }
+    .hero-btn span.label{ display:none; } /* 幅を確保するため、狭い画面ではドットのみ残しラベルは隠す */
+    .el-caption{ display:none; } /* 狭い画面では解説文は省略し、タイトル/作者/年のみ表示 */
+    .filter-panel{ width:100vw; padding:96px 24px 40px; }
+    .gallery-intro{ padding:90px 6% 32px; }
+    .artists-intro{ padding:70px 6% 32px; }
+    .artist{ grid-template-columns:1fr; gap:20px; }
+    .artist-portrait{ width:140px; height:140px; }
+    .artist-portrait-note{ max-width:none; }
+  }
+</style>
+</head>
+<body>
+
+  <header>
+    <div class="logo serif"><span id="logoPrefix">THE</span> <span id="logoAccent" class="accent"></span></div>
+    <div class="header-actions">
+      <button type="button" class="hero-btn" id="modeBtn"><span class="dot"></span><span class="label">CAPTIONS ON</span></button>
+      <button type="button" class="hero-btn" id="muteBtn"><span class="dot"></span><span class="label">SOUND OFF</span></button>
+      <button type="button" class="hero-btn" id="pauseBtn"><span class="dot"></span><span class="label">PAUSE</span></button>
+      <button type="button" class="menu-btn" id="menuBtn" aria-label="分類フィルターを開く" aria-expanded="false"><i></i><i></i><i></i></button>
+    </div>
+  </header>
+
+  <div class="filter-backdrop" id="filterBackdrop"></div>
+  <aside class="filter-panel" id="filterPanel" aria-hidden="true">
+    <div class="eyebrow">FILTER THE COLLECTION</div>
+    <h3 class="serif">分類から探す</h3>
+
+    <div class="group">
+      <div class="group-label">作者</div>
+      <select id="artistSelect"></select>
+    </div>
+
+    <div class="group">
+      <div class="group-label">年代</div>
+      <div class="chip-row" id="eraChips"></div>
+    </div>
+
+    <div class="group">
+      <div class="group-label">流派・技法(複数選択可)</div>
+      <div class="chip-row" id="schoolChips"></div>
+    </div>
+
+    <div class="count" id="filterCount"></div>
+    <button type="button" class="reset" id="filterReset">条件をすべて解除する</button>
+  </aside>
+
+  <section class="hero" id="hero">
+    <!-- スライドはJSで生成 -->
+    <div class="vignette"></div>
+    <div class="progress" id="progress"></div>
+    <div class="hero-empty" id="heroEmpty">
+      <div class="t serif">該当する作品がありません</div>
+      <div class="s">フィルターの条件を変更してください</div>
+    </div>
+    <audio id="bgm" loop preload="none"></audio>
+  </section>
+
+  <section class="gallery-intro">
+    <div class="eyebrow" id="introEyebrow"></div>
+    <h2 class="serif" id="introHeading"></h2>
+    <p id="introBody"></p>
+  </section>
+
+  <div class="grid" id="grid"></div>
+  <div class="grid-empty" id="gridEmpty">該当する作品がありません。フィルター条件を変更してください。</div>
+
+  <section class="artists-intro">
+    <div class="eyebrow">THE ARTISTS</div>
+    <h2 class="serif">作者について</h2>
+    <p>本コレクションに作品を残した絵師たちの、出生・経歴・代表作、そして現代における評価をまとめました。</p>
+  </section>
+  <div class="artists" id="artists"></div>
+
+  <div class="detail-backdrop" id="detailBackdrop"></div>
+  <div class="detail-modal" id="detailModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="detailTitle">
+    <button type="button" class="detail-close" id="detailClose" aria-label="閉じる">×</button>
+    <div class="detail-media"><img id="detailImg" alt=""></div>
+    <div class="detail-body">
+      <div class="schools" id="detailSchools"></div>
+      <h3 class="serif" id="detailTitle"></h3>
+      <div class="sub" id="detailSub"></div>
+      <p class="caption" id="detailCaption"></p>
+      <div class="specs" id="detailSpecs"></div>
+      <div class="venue" id="detailVenue"><span class="dot"></span><span id="detailVenueText"></span></div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="fmain">
+      <div class="logo2 serif" id="footerLogo"></div>
+      <p>
+        <span id="footerDisclaimer"></span>
+        <span class="credit" id="footerCredit"></span>
+      </p>
+    </div>
+    <div class="copy" id="footerCopy"></div>
+  </footer>
+
+<script>
+/* =======================================================================
+   固定語彙: 年代区分 / 流派・技法(表記ゆれ防止のため自由記述にはしない)
+   ======================================================================= */
+const ERAS = [
+  { id:'genroku',       label:'元禄期',     sub:'1688–1704' },
+  { id:'horeki-temmei', label:'宝暦・天明期', sub:'1751–1789' },
+  { id:'kasei',         label:'化政期',     sub:'1804–1830' },
+  { id:'bakumatsu',     label:'幕末期',     sub:'1853–1868' },
+  { id:'other',         label:'その他の時代', sub:'' },
+];
+const SCHOOLS = [
+  { id:'ukiyo-e',       label:'浮世絵' },
+  { id:'kano',          label:'狩野派' },
+  { id:'rinpa',         label:'琳派' },
+  { id:'yamato-e-tosa', label:'大和絵・土佐派' },
+  { id:'nanga',         label:'文人画・南画' },
+];
+
+/* =======================================================================
+   作品データ・作者データ・サイト設定・ヒーローレイアウトは、CMS化に伴い
+   data/*.json から読み込む(下のloadData関数を参照)。スキーマ:
+   works.json:   title / artist / year(表示用) / yearNum(絞り込み用) / era /
+                 schools(複数可、固定語彙) / medium / venue / source / file / caption
+   artists.json: name / dates / portraitSource / portraitFile / bio / works / legacy
+   site-settings.json: logoPrefix / logoAccent / colorInk / colorDim / colorAccent /
+                 fontStack / introEyebrow / introHeading / introBody /
+                 footerDisclaimer / footerCredit / footerCopy / bgmFile
+   hero-layout.json: title/sub/caption/schools/specsそれぞれの{x,y,width,rotation}(%指定)
+   ======================================================================= */
+let WORKS = [];
+let ARTISTS = [];
+let SITE = {};
+let HERO_LAYOUT = {};
+
+async function loadData(){
+  const [works, artists, site, layout] = await Promise.all([
+    fetch('data/works.json').then(r => r.json()),
+    fetch('data/artists.json').then(r => r.json()),
+    fetch('data/site-settings.json').then(r => r.json()),
+    fetch('data/hero-layout.json').then(r => r.json()),
+  ]);
+  WORKS = works;
+  ARTISTS = artists;
+  SITE = site;
+  HERO_LAYOUT = layout;
+}
+
+function applySiteSettings(){
+  document.getElementById('logoPrefix').textContent = SITE.logoPrefix;
+  document.getElementById('logoAccent').textContent = SITE.logoAccent;
+  document.getElementById('footerLogo').textContent = `${SITE.logoPrefix} ${SITE.logoAccent}`;
+  document.getElementById('introEyebrow').textContent = SITE.introEyebrow;
+  document.getElementById('introHeading').textContent = SITE.introHeading;
+  document.getElementById('introBody').textContent = SITE.introBody;
+  document.getElementById('footerDisclaimer').textContent = SITE.footerDisclaimer;
+  document.getElementById('footerCredit').textContent = SITE.footerCredit;
+  document.getElementById('footerCopy').textContent = SITE.footerCopy;
+  document.getElementById('bgm').src = SITE.bgmFile;
+  document.documentElement.style.setProperty('--ink', SITE.colorInk);
+  document.documentElement.style.setProperty('--dim', SITE.colorDim);
+  document.documentElement.style.setProperty('--accent', SITE.colorAccent);
+  document.body.style.fontFamily = SITE.fontStack;
+}
+
+const commonsUrl = (file, width) =>
+  `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=${width}`;
+
+/* source別の画像URL組み立て。現状は全件Wikimedia経由だが、将来LOC/MFA/Rijksmuseum/LACMAの
+   直URLをfileに直接持たせるケースに備え、sourceで分岐できる形にしておく(引き継ぎ指示書4.5節/依頼書4-4節)。 */
+function imageUrl(work, width){
+  if (work.source === 'wikimedia') return commonsUrl(work.file, width);
+  return work.file; // 他ソースはfileに直接URLを持たせる想定
+}
+
+const artistSlug = (artist) =>
+  artist.split('(')[0].trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') // マクロン等の発音区別符号を除去(ō→o 等)してURLを読みやすくする
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+
+/* =======================================================================
+   状態管理: 分類フィルター・表示モード・ミュート状態をURLクエリに保持する
+   ======================================================================= */
+const ALL_ERAS = ERAS.map(e => e.id);
+const ALL_SCHOOLS = SCHOOLS.map(s => s.id);
+
+const state = {
+  artist: 'all',
+  eras: new Set(ALL_ERAS),
+  schools: new Set(ALL_SCHOOLS),
+  mode: 'caption', // 'caption' | 'image-only'
+  muted: true,
+  paused: false,
+};
+
+function restoreStateFromURL(){
+  const p = new URLSearchParams(location.search);
+  const artist = p.get('artist');
+  if (artist) state.artist = artist;
+  const era = p.get('era');
+  if (era) state.eras = new Set(era.split(',').filter(id => ALL_ERAS.includes(id)));
+  const school = p.get('school');
+  if (school) state.schools = new Set(school.split(',').filter(id => ALL_SCHOOLS.includes(id)));
+  const mode = p.get('mode');
+  if (mode === 'image-only') state.mode = 'image-only';
+  const muted = p.get('muted');
+  if (muted === '0') state.muted = false;
+}
+
+function syncURL(){
+  const p = new URLSearchParams();
+  if (state.artist !== 'all') p.set('artist', state.artist);
+  if (state.eras.size !== ALL_ERAS.length) p.set('era', [...state.eras].join(','));
+  if (state.schools.size !== ALL_SCHOOLS.length) p.set('school', [...state.schools].join(','));
+  if (state.mode !== 'caption') p.set('mode', state.mode);
+  if (!state.muted) p.set('muted', '0');
+  const qs = p.toString();
+  history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
+}
+
+function getFilteredWorks(){
+  return WORKS.filter(w =>
+    (state.artist === 'all' || artistSlug(w.artist) === state.artist) &&
+    state.eras.has(w.era) &&
+    w.schools.some(s => state.schools.has(s))
+  );
+}
+
+/* =======================================================================
+   ヒーロー: スライドショー生成 + 自動再生 + 一時停止 + スワイプ
+   ======================================================================= */
+const hero = document.getElementById('hero');
+const heroEmpty = document.getElementById('heroEmpty');
+const progressEl = document.getElementById('progress');
+const SLIDE_MS = 8000;
+
+let currentWorks = [];
+let slideEls = [];
+let barEls = [];
+let current = 0;
+let slideTimer = null;
+let slideDeadline = 0;
+let remainingMs = SLIDE_MS;
+
+function scheduleNext(ms){
+  clearTimeout(slideTimer);
+  if (state.paused || currentWorks.length === 0) return;
+  slideDeadline = Date.now() + ms;
+  slideTimer = setTimeout(() => goTo((current + 1) % currentWorks.length), ms);
+}
+
+function goTo(i){
+  if (currentWorks.length === 0) return;
+  if (slideEls[current]) slideEls[current].classList.remove('active');
+  current = i;
+  const s = slideEls[current];
+  // Ken Burns/進捗バーをリスタートさせるため、一度アニメーションを解除してから再度付与する(引き継ぎ指示書4.2節の定石パターン)
+  const bg = s.querySelector('.bg');
+  bg.style.animation = 'none';
+  void bg.offsetWidth;
+  bg.style.animation = '';
+  s.classList.add('active');
+
+  barEls.forEach((b, bi) => {
+    b.classList.remove('filling');
+    b.classList.toggle('done', bi < current);
+    void b.offsetWidth;
+    if (bi === current) b.classList.add('filling');
+  });
+
+  scheduleNext(SLIDE_MS);
+}
+
+// hero-layout.jsonの1テンプレートを、スライド内5要素それぞれのinline styleに変換する
+function layoutStyle(key){
+  const L = HERO_LAYOUT[key] || {};
+  const x = L.x ?? 6, y = L.y ?? 16, w = L.width ?? 40, r = L.rotation ?? 0;
+  return `left:${x}%; top:${y}%; width:${w}%;${r ? ` transform:rotate(${r}deg);` : ''}`;
+}
+
+function renderHero(list){
+  currentWorks = list;
+  slideEls.forEach(el => el.remove());
+  progressEl.innerHTML = '';
+  clearTimeout(slideTimer);
+  current = 0;
+
+  if (list.length === 0){
+    heroEmpty.classList.add('show');
+    slideEls = [];
+    barEls = [];
+    return;
+  }
+  heroEmpty.classList.remove('show');
+
+  slideEls = list.map((w) => {
+    const slide = document.createElement('div');
+    slide.className = 'slide';
+    const schoolsLabel = w.schools.map(id => SCHOOLS.find(s => s.id === id)?.label || id);
+    slide.innerHTML = `
+      <div class="bg" style="background-image:url('${imageUrl(w, 2400)}')"></div>
+      <div class="el el-title serif" style="${layoutStyle('title')}">${w.title}</div>
+      <div class="el el-sub" style="${layoutStyle('sub')}">${w.artist} — ${w.year}</div>
+      <p class="el el-caption" style="${layoutStyle('caption')}">${w.caption}</p>
+      <div class="el el-schools" style="${layoutStyle('schools')}">${schoolsLabel.map(l => `<span>${l}</span>`).join('')}</div>
+      <div class="el el-specs" style="${layoutStyle('specs')}">${w.medium.split(' · ')[0]}</div>
+    `;
+    hero.appendChild(slide);
+    return slide;
+  });
+
+  list.forEach((_, i) => {
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    bar.dataset.i = i;
+    bar.innerHTML = '<i></i>';
+    bar.addEventListener('click', () => goTo(i));
+    progressEl.appendChild(bar);
+  });
+  barEls = [...progressEl.children];
+
+  goTo(0);
+}
+
+function togglePause(force){
+  state.paused = typeof force === 'boolean' ? force : !state.paused;
+  hero.classList.toggle('paused', state.paused);
+  pauseBtn.classList.toggle('is-off', !state.paused);
+  pauseBtn.querySelector('.label').textContent = state.paused ? 'PLAY' : 'PAUSE';
+  if (state.paused){
+    remainingMs = Math.max(0, slideDeadline - Date.now()) || SLIDE_MS;
+    clearTimeout(slideTimer);
+  } else {
+    scheduleNext(remainingMs || SLIDE_MS);
+  }
+}
+
+/* タッチスワイプ: 既存のgoTo(i)を流用。手動送り時は8秒タイマーが goTo 内で自動的にリセットされる */
+let touchStartX = null;
+hero.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].clientX; }, { passive:true });
+hero.addEventListener('touchend', (e) => {
+  if (touchStartX === null || currentWorks.length === 0) return;
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  touchStartX = null;
+  if (Math.abs(dx) < 40) return;
+  const next = dx < 0 ? (current + 1) % currentWorks.length : (current - 1 + currentWorks.length) % currentWorks.length;
+  goTo(next);
+}, { passive:true });
+
+/* =======================================================================
+   BGM: デフォルトミュート。ミュート解除ボタンを押した時点で初めて再生を開始する。
+   スライド遷移ロジック(goTo/タイマー)とは独立させ、8秒ごとの切り替えと衝突させない。
+   ======================================================================= */
+const bgm = document.getElementById('bgm');
+const muteBtn = document.getElementById('muteBtn');
+bgm.muted = true;
+bgm.volume = 0.55;
+
+function setMuted(muted){
+  state.muted = muted;
+  muteBtn.classList.toggle('is-off', muted);
+  muteBtn.querySelector('.label').textContent = muted ? 'SOUND OFF' : 'SOUND ON';
+  bgm.muted = muted;
+  if (!muted){
+    bgm.play().catch(() => { /* ブラウザの自動再生ポリシーで拒否された場合は無音のまま留まる */ });
+  } else {
+    bgm.pause();
+  }
+}
+muteBtn.addEventListener('click', () => { setMuted(!state.muted); syncURL(); });
+
+/* =======================================================================
+   表示モード切り替え(画像のみ / 画像+解説)・一時停止ボタン
+   ======================================================================= */
+const modeBtn = document.getElementById('modeBtn');
+function setMode(mode){
+  state.mode = mode;
+  hero.classList.toggle('mode-image-only', mode === 'image-only');
+  modeBtn.classList.toggle('is-off', mode === 'image-only');
+  modeBtn.querySelector('.label').textContent = mode === 'image-only' ? 'CAPTIONS OFF' : 'CAPTIONS ON';
+  // CAPTIONS OFFにした瞬間、カーソルがheader上に残っていてもロゴ/ボタンを即座に隠す。
+  // force-hiddenはheaderからカーソルが一度離れた時点(mouseleave)で解除し、以降は通常のホバー表示に戻す。
+  if (mode === 'image-only') headerEl.classList.add('force-hidden');
+}
+modeBtn.addEventListener('click', () => { setMode(state.mode === 'caption' ? 'image-only' : 'caption'); syncURL(); });
+
+const pauseBtn = document.getElementById('pauseBtn');
+pauseBtn.addEventListener('click', () => togglePause());
+
+/* =======================================================================
+   分類フィルターパネル
+   ======================================================================= */
+const menuBtn = document.getElementById('menuBtn');
+const headerEl = document.querySelector('header');
+const filterPanel = document.getElementById('filterPanel');
+const filterBackdrop = document.getElementById('filterBackdrop');
+const artistSelect = document.getElementById('artistSelect');
+const eraChips = document.getElementById('eraChips');
+const schoolChips = document.getElementById('schoolChips');
+const filterCount = document.getElementById('filterCount');
+const filterReset = document.getElementById('filterReset');
+
+function openPanel(open){
+  filterPanel.classList.toggle('open', open);
+  filterBackdrop.classList.toggle('open', open);
+  filterPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+  menuBtn.classList.toggle('is-open', open);
+  menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  headerEl.classList.toggle('force-visible', open); // パネルを開いている間はホバーが外れてもロゴ/ボタンを隠さない
+}
+menuBtn.addEventListener('click', () => openPanel(!filterPanel.classList.contains('open')));
+headerEl.addEventListener('mouseleave', () => headerEl.classList.remove('force-hidden'));
+filterBackdrop.addEventListener('click', () => openPanel(false));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape'){ openPanel(false); closeDetail(); } });
+
+// 作者セレクトの選択肢はWORKSから動的生成(表記ゆれ防止のため作品データそのものを正とする)。
+// WORKSの読み込み(loadData)完了後にinit()から呼び出す。
+function populateArtistSelect(){
+  const artistOptions = [];
+  const seenArtists = new Set();
+  WORKS.forEach(w => {
+    const slug = artistSlug(w.artist);
+    if (!seenArtists.has(slug)){ seenArtists.add(slug); artistOptions.push({ slug, label: w.artist }); }
+  });
+  artistSelect.innerHTML = ['<option value="all">すべての作者</option>']
+    .concat(artistOptions.map(a => `<option value="${a.slug}">${a.label}</option>`))
+    .join('');
+}
+artistSelect.addEventListener('change', () => { state.artist = artistSelect.value; refresh(); syncURL(); });
+
+function buildChips(container, items, selectedSet, name){
+  container.innerHTML = items.map(item => `
+    <label class="chip">
+      <input type="checkbox" name="${name}" value="${item.id}" ${selectedSet.has(item.id) ? 'checked' : ''}>
+      <span><span class="dot" style="display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--accent);margin-right:6px;"></span>${item.label}${item.sub ? ` <span style="opacity:.6">(${item.sub})</span>` : ''}</span>
+    </label>
+  `).join('');
+  [...container.querySelectorAll('input')].forEach(input => {
+    input.addEventListener('change', () => {
+      if (input.checked) selectedSet.add(input.value); else selectedSet.delete(input.value);
+      refresh(); syncURL();
+    });
+  });
+}
+buildChips(eraChips, ERAS, state.eras, 'era');
+buildChips(schoolChips, SCHOOLS, state.schools, 'school');
+
+filterReset.addEventListener('click', () => {
+  state.artist = 'all'; state.eras = new Set(ALL_ERAS); state.schools = new Set(ALL_SCHOOLS);
+  artistSelect.value = 'all';
+  buildChips(eraChips, ERAS, state.eras, 'era');
+  buildChips(schoolChips, SCHOOLS, state.schools, 'school');
+  refresh(); syncURL();
+});
+
+/* =======================================================================
+   下部ギャラリーグリッド生成 + スクロールで順にフェードイン
+   ======================================================================= */
+const grid = document.getElementById('grid');
+const gridEmpty = document.getElementById('gridEmpty');
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); });
+}, { threshold: 0.15 });
+
+function renderGrid(list){
+  grid.innerHTML = '';
+  gridEmpty.classList.toggle('show', list.length === 0);
+  list.forEach((w, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.transitionDelay = (i % 3) * 0.08 + 's';
+    card.setAttribute('role', 'button');
+    card.setAttribute('tabindex', '0');
+    card.innerHTML = `
+      <img src="${imageUrl(w, 800)}" alt="${w.title}" loading="lazy">
+      <div class="cinfo">
+        <div class="n">0${i + 1}</div>
+        <div class="t serif">${w.title}</div>
+        <div class="a">${w.artist} — ${w.year}</div>
+      </div>
+    `;
+    card.addEventListener('click', () => openDetail(w));
+    card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openDetail(w); } });
+    grid.appendChild(card);
+    io.observe(card);
+  });
+}
+
+/* =======================================================================
+   作者について セクション: フィルターに関わらず全作者を常時表示する固定コンテンツ。
+   肖像画は実在確認済みのファイルのみ表示し、確認できない作者は頭文字のプレースホルダーにする。
+   ======================================================================= */
+const artistsEl = document.getElementById('artists');
+function renderArtists(){
+  artistsEl.innerHTML = ARTISTS.map(a => {
+    const initial = a.name.trim().charAt(0);
+    const portrait = a.portraitFile
+      ? `<img src="${imageUrl({ source:a.portraitSource, file:a.portraitFile }, 640)}" alt="${a.name}の肖像">`
+      : `<div class="placeholder"><span class="serif">${initial}</span></div>`;
+    const note = a.portraitFile ? '' : `<div class="artist-portrait-note">肖像は現存が確認できていないため、頭文字で表示しています。</div>`;
+    return `
+      <article class="artist">
+        <div class="artist-portrait">${portrait}</div>
+        <div class="artist-body">
+          <div class="artist-name serif">${a.name}</div>
+          <div class="artist-dates">${a.dates}</div>
+          ${note}
+          <p class="artist-bio">${a.bio}</p>
+          <div class="artist-field"><span class="lbl">代表作</span>${a.works}</div>
+          <div class="artist-field"><span class="lbl">現代の評価</span>${a.legacy}</div>
+        </div>
+      </article>
+    `;
+  }).join('');
+}
+
+/* =======================================================================
+   作品詳細モーダル: 下部グリッドの作品をクリックすると、上部スライドショーには
+   移動せず、その場でキャプションと同じ解説をあわせて表示する。
+   ======================================================================= */
+const detailBackdrop = document.getElementById('detailBackdrop');
+const detailModal = document.getElementById('detailModal');
+const detailClose = document.getElementById('detailClose');
+const detailImg = document.getElementById('detailImg');
+const detailSchools = document.getElementById('detailSchools');
+const detailTitle = document.getElementById('detailTitle');
+const detailSub = document.getElementById('detailSub');
+const detailCaption = document.getElementById('detailCaption');
+const detailSpecs = document.getElementById('detailSpecs');
+const detailVenueText = document.getElementById('detailVenueText');
+
+function openDetail(w){
+  detailImg.src = imageUrl(w, 1600);
+  detailImg.alt = w.title;
+  detailSchools.innerHTML = w.schools.map(id => `<span>${SCHOOLS.find(s => s.id === id)?.label || id}</span>`).join('');
+  detailTitle.textContent = w.title;
+  detailSub.textContent = `${w.artist} — ${w.year}`;
+  detailCaption.textContent = w.caption;
+  const [medium1, medium2] = w.medium.split(' · ');
+  detailSpecs.innerHTML = `<b>${medium1}</b>${medium2 ? `<br>${medium2}` : ''}`;
+  detailVenueText.textContent = w.venue;
+
+  detailBackdrop.classList.add('open');
+  detailModal.classList.add('open');
+  detailModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeDetail(){
+  detailBackdrop.classList.remove('open');
+  detailModal.classList.remove('open');
+  detailModal.setAttribute('aria-hidden', 'true');
+}
+detailClose.addEventListener('click', closeDetail);
+detailBackdrop.addEventListener('click', closeDetail);
+
+/* =======================================================================
+   全体再描画: フィルターが変わるたびにヒーロー/グリッド/カウント/URLを同期
+   ======================================================================= */
+function refresh(){
+  const list = getFilteredWorks();
+  renderHero(list);
+  renderGrid(list);
+  filterCount.textContent = `該当作品: ${list.length} 点 / 全 ${WORKS.length} 点`;
+}
+
+/* =======================================================================
+   初期化: data/*.jsonを読み込んでから、URL状態を復元して描画する
+   ======================================================================= */
+async function init(){
+  await loadData();
+  applySiteSettings();
+  populateArtistSelect();
+
+  restoreStateFromURL();
+  artistSelect.value = state.artist;
+  buildChips(eraChips, ERAS, state.eras, 'era');
+  buildChips(schoolChips, SCHOOLS, state.schools, 'school');
+  setMode(state.mode);
+  setMuted(state.muted); // ページ読み込み時は常にミュートのまま(自動再生ポリシー)。URL上の値はボタン表示にのみ反映
+  muteBtn.querySelector('.label').textContent = 'SOUND OFF';
+  muteBtn.classList.toggle('is-off', true);
+  refresh();
+  renderArtists();
+}
+init();
+</script>
+</body>
+</html>
