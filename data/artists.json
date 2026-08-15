@@ -1,77 +1,99 @@
 [
   {
-    "name": "Katsushika Hokusai (葛飾北斎)", "dates": "1760–1849 · 江戸(現・東京)生まれ",
-    "portraitSource": "wikimedia", "portraitFile": "Hokusai as an old man.jpg",
+    "name": "Katsushika Hokusai (葛飾北斎)",
+    "dates": "1760–1849 · 江戸(現・東京)生まれ",
+    "portraitSource": "wikimedia",
+    "portraitFile": "Hokusai as an old man.jpg",
     "bio": "幼少より絵を学び、勝川派に入門したのち独立。生涯に30以上の画号を名乗りながら作風を革新し続け、晩年まで旺盛に制作した。90歳で没する直前まで「あと5年生きられれば本当の絵師になれた」と語ったと伝わる。",
     "works": "『冨嶽三十六景』『北斎漫画』",
     "legacy": "西洋の印象派やアール・ヌーヴォーに大きな影響を与え、「HOKUSAI」の名で世界的に知られる、日本美術史上もっとも国際的に評価の高い絵師の一人。"
   },
   {
-    "name": "Utagawa Hiroshige (歌川広重)", "dates": "1797–1858 · 江戸生まれ",
-    "portraitSource": "wikimedia", "portraitFile": "Memorial Portrait of Hiroshige, by Kunisada.jpg",
+    "name": "Utagawa Hiroshige (歌川広重)",
+    "dates": "1797–1858 · 江戸生まれ",
+    "portraitSource": "wikimedia",
+    "portraitFile": "Memorial Portrait of Hiroshige, by Kunisada.jpg",
     "bio": "定火消同心の家に生まれ、歌川豊広に師事して歌川派に入門。武家の役職を辞して絵師専業となり、旅情あふれる風景版画を数多く手がけた。安政の大地震後の江戸復興期にも制作を続けたが、1858年、コレラにより61歳で没した。",
     "works": "『東海道五十三次』『名所江戸百景』",
     "legacy": "抒情的な風景表現がゴッホをはじめ西洋の画家たちに愛され、北斎と並び「風景版画の双璧」と称される。"
   },
   {
-    "name": "Tōshūsai Sharaku (東洲斎写楽)", "dates": "生没年不詳 · 出身地不詳",
-    "portraitSource": null, "portraitFile": null,
+    "name": "Tōshūsai Sharaku (東洲斎写楽)",
+    "dates": "生没年不詳 · 出身地不詳",
+    "portraitSource": null,
+    "portraitFile": null,
     "bio": "寛政六年(1794)から翌年にかけての約十ヶ月間のみ、版元・蔦屋重三郎のもとで活動した後、忽然と姿を消した謎の絵師。能役者・斎藤十郎兵衛と同一人物とする説が有力視されているが、確証はない。肖像も一切現存していない。",
     "works": "『三代目大谷鬼次の奴江戸兵衛』ほか大首絵(役者絵)約140点",
     "legacy": "短期間の活動にもかかわらず、役者の表情や仕草を誇張して捉えた迫真の表現は国内外で高く評価され、「世界三大肖像画家」の一人に数えられることもある。"
   },
   {
-    "name": "Kitagawa Utamaro (喜多川歌麿)", "dates": "c. 1753–1806 · 出身地諸説あり",
-    "portraitSource": "wikimedia", "portraitFile": "Kitagawa Utamaro portrait (cropped).jpg",
+    "name": "Kitagawa Utamaro (喜多川歌麿)",
+    "dates": "c. 1753–1806 · 出身地諸説あり",
+    "portraitSource": "wikimedia",
+    "portraitFile": "Kitagawa Utamaro portrait (cropped).jpg",
     "bio": "版元・蔦屋重三郎の庇護のもと、美人画の分野で独自の様式を確立。寛政の改革による出版統制の中でも制作を続けたが、晩年は風紀を乱したとして幕府の処罰を受け、その2年後に没した。",
     "works": "『婦人相学十躰』『当時三美人』などの美人大首絵",
     "legacy": "女性の心理や仕草を繊細に描き出した美人画の第一人者として、19世紀末のジャポニスムを通じて西洋にも早くから紹介された。"
   },
   {
-    "name": "Ogata Kōrin (尾形光琳)", "dates": "1658–1716 · 京都生まれ",
-    "portraitSource": null, "portraitFile": null,
+    "name": "Ogata Kōrin (尾形光琳)",
+    "dates": "1658–1716 · 京都生まれ",
+    "portraitSource": null,
+    "portraitFile": null,
     "bio": "京都の呉服商「雁金屋」に生まれた裕福な町人。家業の衰退後、絵と工芸の道へ進み、俵屋宗達の様式を再解釈して、大胆な意匠性と余白の美を特徴とする画風を確立した。",
     "works": "『燕子花図屏風』『紅白梅図屏風』",
     "legacy": "その装飾的な様式は「琳派」の名の由来となり、後世の日本の意匠・工芸デザインに至るまで影響を与え続けている。"
   },
   {
-    "name": "Tawaraya Sōtatsu (俵屋宗達)", "dates": "生没年不詳(17世紀前半に活動) · 出身地不詳",
-    "portraitSource": null, "portraitFile": null,
+    "name": "Tawaraya Sōtatsu (俵屋宗達)",
+    "dates": "生没年不詳(17世紀前半に活動) · 出身地不詳",
+    "portraitSource": null,
+    "portraitFile": null,
     "bio": "京都で絵屋「俵屋」を営みながら、本阿弥光悦と協業し、大和絵の伝統を大胆に再構成した作品を残した。生涯の記録がほとんど残っておらず、本名すら推測の域を出ない。肖像も現存していない。",
     "works": "『風神雷神図屏風』(国宝)",
     "legacy": "経歴が謎に包まれているにもかかわらず、後の光琳・酒井抱一らに直接的な影響を与え、「琳派」の始祖として位置づけられている。"
   },
   {
-    "name": "Kanō Eitoku (狩野永徳)", "dates": "1543–1590 · 京都生まれ",
-    "portraitSource": null, "portraitFile": null,
+    "name": "Kanō Eitoku (狩野永徳)",
+    "dates": "1543–1590 · 京都生まれ",
+    "portraitSource": null,
+    "portraitFile": null,
     "bio": "狩野派宗家に生まれ、織田信長・豊臣秀吉ら天下人に重用されて安土城・大坂城などの障壁画を手がけた。豪壮華麗な様式で狩野派を画壇の頂点に押し上げたが、多忙のあまり48歳で急逝したと伝わる。",
     "works": "『唐獅子図屏風』『檜図屏風』",
     "legacy": "桃山時代を象徴する豪壮な画風の完成者として、日本絵画史における最重要人物の一人に数えられる。"
   },
   {
-    "name": "Kanō Sansetsu (狩野山雪)", "dates": "1589–1651 · 肥前(現・佐賀県)生まれ",
-    "portraitSource": "wikimedia", "portraitFile": "Portrait of Kanō Sansetsu.jpg",
+    "name": "Kanō Sansetsu (狩野山雪)",
+    "dates": "1589–1651 · 肥前(現・佐賀県)生まれ",
+    "portraitSource": "wikimedia",
+    "portraitFile": "Portrait of Kanō Sansetsu.jpg",
     "bio": "狩野山楽の養子となり画技を学ぶ。狩野派の中でも特に奇矯で幻想的な構成を好み、幾何学的なまでに様式化された樹木表現など、独自の画風を築いた。",
     "works": "『老梅図襖』",
     "legacy": "狩野派の正統な技法を継承しつつも個性的な造形感覚を貫いたことから、近年ではその独創性が再評価されつつある。"
   },
   {
-    "name": "Tosa Mitsuoki (土佐光起)", "dates": "1617–1691 · 和泉国堺生まれ",
-    "portraitSource": null, "portraitFile": null,
+    "name": "Tosa Mitsuoki (土佐光起)",
+    "dates": "1617–1691 · 和泉国堺生まれ",
+    "portraitSource": null,
+    "portraitFile": null,
     "bio": "断絶しかけていた土佐派を再興し、宮廷絵所預(えどころあずかり)の職に復帰。大和絵の伝統に写生的な描写を取り入れ、繊細で優美な様式を確立した。",
     "works": "『鶉図』",
     "legacy": "衰退していた宮廷絵画の伝統を近世に受け継いだ功績により、土佐派中興の祖として評価されている。"
   },
   {
-    "name": "Ike no Taiga (池大雅)", "dates": "1723–1776 · 京都生まれ",
-    "portraitSource": "wikimedia", "portraitFile": "A portrait of Ike Taiga by Fukuhara Gogaku 池大雅像 福原五岳.jpg",
+    "name": "Ike no Taiga (池大雅)",
+    "dates": "1723–1776 · 京都生まれ",
+    "portraitSource": "wikimedia",
+    "portraitFile": "A portrait of Ike Taiga by Fukuhara Gogaku 池大雅像 福原五岳.jpg",
     "bio": "幼少より書画の才を示し、若くして専門の絵師として身を立てる。中国の文人画を独自に解釈し、日本の風土に合った南画(文人画)様式を確立した。与謝蕪村との合作でも知られる。",
     "works": "『十便十宜図』(蕪村との合作)、指頭画の数々",
     "legacy": "日本文人画(南画)の大成者として、専門画家でありながら文人的な精神性を体現した稀有な存在と評価される。"
   },
   {
-    "name": "Yosa Buson (与謝蕪村)", "dates": "1716–1784 · 摂津国毛馬村(現・大阪市)生まれ",
-    "portraitSource": "wikimedia", "portraitFile": "Yosa Buson.jpg",
+    "name": "Yosa Buson (与謝蕪村)",
+    "dates": "1716–1784 · 摂津国毛馬村(現・大阪市)生まれ",
+    "portraitSource": "wikimedia",
+    "portraitFile": "Yosa Buson.jpg",
     "bio": "俳人としても活動しながら絵師としての活動を並行させ、松尾芭蕉を敬慕して『おくのほそ道』の情景を絵画化した。池大雅との合作『十便十宜図』でも知られる。",
     "works": "『奥の細道図巻』、『十便十宜図』(大雅との合作)",
     "legacy": "俳句と絵画双方に通じた文人として、俳画という独自の表現形式を確立し、俳人・画家双方の文脈で高く評価されている。"
