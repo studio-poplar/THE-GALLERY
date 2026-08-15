@@ -9,7 +9,7 @@
   "introHeading": "いつでも、名画をそばに。",
   "introBody": "美術館へ足を運ばなくても、いつでも、どこからでも鑑賞できるオンラインギャラリーです。浮世絵を中心とした日本絵画の名品を、スライドショーと作品一覧の両方からお楽しみいただけます。右上のメニューから、作者・年代・流派／技法ごとに作品を絞り込むことも可能です。",
   "footerDisclaimer": "掲載作品はすべて著作権保護期間が満了した日本絵画(浮世絵中心)です。画像はWikimedia Commons経由で、各収蔵美術館(メトロポリタン美術館、ボストン美術館、LACMA、ブルックリン美術館ほか)が公開しているパブリックドメイン/CC0データを参照しています。",
-  "footerCredit": "BGM: \"Kyoto Garden\" by Back_Drop(Pixabay Content License / 商用利用可・クレジット表記任意)。音源ファイルは同梱していないため、公開前にご用意ください。",
+  "footerCredit": "BGM: \"Kyoto Garden\" by Back_Drop(Pixabay Content License",
   "footerCopy": "© THE GALLERY — Virtual Museum Experience Demo",
   "bgmFile": "assets/audio/bgm-kyoto-garden.mp3"
 }
