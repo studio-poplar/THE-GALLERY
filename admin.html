@@ -300,7 +300,7 @@
         <div>
           <div class="eyebrow">SITE SETTINGS</div>
           <h2 class="serif">サイト設定</h2>
-          <p>ロゴ・配色・フォント・トップの見出しブロック・フッター文言・BGM音源のパスを設定します。</p>
+          <p>ロゴ・配色・フォント・トップの見出しブロック・フッター文言を設定します。</p>
         </div>
         <div class="btn-row">
           <button type="button" class="btn primary" id="siteSaveGithub">GitHubに保存</button>
@@ -332,12 +332,7 @@
         <div class="field"><label>見出しブロック: 本文</label><textarea id="s-introBody"></textarea></div>
 
         <div class="field"><label>フッター: 免責文言</label><textarea id="s-footerDisclaimer"></textarea></div>
-        <div class="field"><label>フッター: BGMクレジット</label><textarea id="s-footerCredit"></textarea></div>
         <div class="field"><label>フッター: コピーライト表記</label><input type="text" id="s-footerCopy"></div>
-
-        <div class="field"><label>BGM音源ファイルのパス</label><input type="text" id="s-bgmFile" placeholder="assets/audio/bgm-kyoto-garden.mp3">
-          <div class="hint">ファイル本体はこの管理画面からアップロードできません。指定したパスに実際の音声ファイルを配置してください。</div>
-        </div>
       </form>
     </section>
 
@@ -971,9 +966,7 @@ function populateSiteForm(){
   document.getElementById('s-introHeading').value = SITE.introHeading || '';
   document.getElementById('s-introBody').value = SITE.introBody || '';
   document.getElementById('s-footerDisclaimer').value = SITE.footerDisclaimer || '';
-  document.getElementById('s-footerCredit').value = SITE.footerCredit || '';
   document.getElementById('s-footerCopy').value = SITE.footerCopy || '';
-  document.getElementById('s-bgmFile').value = SITE.bgmFile || '';
 }
 
 function buildSiteRecord(){
@@ -989,9 +982,7 @@ function buildSiteRecord(){
     introHeading: document.getElementById('s-introHeading').value.trim(),
     introBody: document.getElementById('s-introBody').value.trim(),
     footerDisclaimer: document.getElementById('s-footerDisclaimer').value.trim(),
-    footerCredit: document.getElementById('s-footerCredit').value.trim(),
     footerCopy: document.getElementById('s-footerCopy').value.trim(),
-    bgmFile: document.getElementById('s-bgmFile').value.trim(),
   };
 }
 document.getElementById('siteDownload').addEventListener('click', () => downloadJSON('site-settings.json', buildSiteRecord()));

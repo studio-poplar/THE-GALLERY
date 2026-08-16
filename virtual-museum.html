@@ -38,7 +38,7 @@
   header .logo{ font-size:1.05rem; letter-spacing:.32em; font-weight:400; }
   header .logo .accent{ color:var(--accent); }
 
-  /* header内の操作クラスタ(ハンバーガー+一時停止/BGM/表示モード)。
+  /* header内の操作クラスタ(ハンバーガー+一時停止/表示モード)。
      header自体はpointer-events:noneのため、クリック可能な要素にだけ個別にautoを付与する。 */
   .header-actions{ display:flex; align-items:center; gap:10px; }
 
@@ -328,7 +328,6 @@
     <div class="logo serif"><span id="logoPrefix">THE</span> <span id="logoAccent" class="accent"></span></div>
     <div class="header-actions">
       <button type="button" class="hero-btn" id="modeBtn"><span class="dot"></span><span class="label">CAPTIONS ON</span></button>
-      <button type="button" class="hero-btn" id="muteBtn"><span class="dot"></span><span class="label">SOUND OFF</span></button>
       <button type="button" class="hero-btn" id="pauseBtn"><span class="dot"></span><span class="label">PAUSE</span></button>
       <button type="button" class="menu-btn" id="menuBtn" aria-label="分類フィルターを開く" aria-expanded="false"><i></i><i></i><i></i></button>
     </div>
@@ -370,7 +369,6 @@
       <div class="t serif">該当する作品がありません</div>
       <div class="s">フィルターの条件を変更してください</div>
     </div>
-    <audio id="bgm" loop preload="none"></audio>
   </section>
 
   <section class="gallery-intro">
@@ -408,7 +406,6 @@
       <div class="logo2 serif" id="footerLogo"></div>
       <p>
         <span id="footerDisclaimer"></span>
-        <span class="credit" id="footerCredit"></span>
       </p>
     </div>
     <div class="copy" id="footerCopy"></div>
@@ -441,7 +438,7 @@ const SCHOOLS = [
    artists.json: name / dates / portraitSource / portraitFile / bio / works / legacy
    site-settings.json: logoPrefix / logoAccent / colorInk / colorDim / colorAccent /
                  fontStack / introEyebrow / introHeading / introBody /
-                 footerDisclaimer / footerCredit / footerCopy / bgmFile
+                 footerDisclaimer / footerCopy
    hero-layout.json: タイトル/作者・年/解説文/流派タグ/技法ラベルをまとめた1グループの{x,y,width,rotation}(%指定)。
                  グループ内部は自動縦積み(重なり防止のため個別要素の位置指定はしない)
    ======================================================================= */
@@ -471,9 +468,7 @@ function applySiteSettings(){
   document.getElementById('introHeading').textContent = SITE.introHeading;
   document.getElementById('introBody').textContent = SITE.introBody;
   document.getElementById('footerDisclaimer').textContent = SITE.footerDisclaimer;
-  document.getElementById('footerCredit').textContent = SITE.footerCredit;
   document.getElementById('footerCopy').textContent = SITE.footerCopy;
-  document.getElementById('bgm').src = SITE.bgmFile;
   document.documentElement.style.setProperty('--ink', SITE.colorInk);
   document.documentElement.style.setProperty('--dim', SITE.colorDim);
   document.documentElement.style.setProperty('--accent', SITE.colorAccent);
@@ -507,7 +502,6 @@ const state = {
   eras: new Set(ALL_ERAS),
   schools: new Set(ALL_SCHOOLS),
   mode: 'caption', // 'caption' | 'image-only'
-  muted: true,
   paused: false,
 };
 
@@ -521,8 +515,6 @@ function restoreStateFromURL(){
   if (school) state.schools = new Set(school.split(',').filter(id => ALL_SCHOOLS.includes(id)));
   const mode = p.get('mode');
   if (mode === 'image-only') state.mode = 'image-only';
-  const muted = p.get('muted');
-  if (muted === '0') state.muted = false;
 }
 
 function syncURL(){
@@ -531,7 +523,6 @@ function syncURL(){
   if (state.eras.size !== ALL_ERAS.length) p.set('era', [...state.eras].join(','));
   if (state.schools.size !== ALL_SCHOOLS.length) p.set('school', [...state.schools].join(','));
   if (state.mode !== 'caption') p.set('mode', state.mode);
-  if (!state.muted) p.set('muted', '0');
   const qs = p.toString();
   history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
 }
@@ -680,28 +671,6 @@ hero.addEventListener('touchend', (e) => {
   const next = dx < 0 ? (current + 1) % currentWorks.length : (current - 1 + currentWorks.length) % currentWorks.length;
   goTo(next);
 }, { passive:true });
-
-/* =======================================================================
-   BGM: デフォルトミュート。ミュート解除ボタンを押した時点で初めて再生を開始する。
-   スライド遷移ロジック(goTo/タイマー)とは独立させ、8秒ごとの切り替えと衝突させない。
-   ======================================================================= */
-const bgm = document.getElementById('bgm');
-const muteBtn = document.getElementById('muteBtn');
-bgm.muted = true;
-bgm.volume = 0.55;
-
-function setMuted(muted){
-  state.muted = muted;
-  muteBtn.classList.toggle('is-off', muted);
-  muteBtn.querySelector('.label').textContent = muted ? 'SOUND OFF' : 'SOUND ON';
-  bgm.muted = muted;
-  if (!muted){
-    bgm.play().catch(() => { /* ブラウザの自動再生ポリシーで拒否された場合は無音のまま留まる */ });
-  } else {
-    bgm.pause();
-  }
-}
-muteBtn.addEventListener('click', () => { setMuted(!state.muted); syncURL(); });
 
 /* =======================================================================
    表示モード切り替え(画像のみ / 画像+解説)・一時停止ボタン
@@ -919,9 +888,6 @@ async function init(){
   buildChips(eraChips, ERAS, state.eras, 'era');
   buildChips(schoolChips, SCHOOLS, state.schools, 'school');
   setMode(state.mode);
-  setMuted(state.muted); // ページ読み込み時は常にミュートのまま(自動再生ポリシー)。URL上の値はボタン表示にのみ反映
-  muteBtn.querySelector('.label').textContent = 'SOUND OFF';
-  muteBtn.classList.toggle('is-off', true);
   refresh();
   renderArtists();
 }
