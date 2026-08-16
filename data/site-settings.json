@@ -2,12 +2,12 @@
   "logoPrefix": "THE",
   "logoAccent": "GALLERY",
   "colorInk": "#f4efe4",
-  "colorDim": "rgba(244,239,228,.6)",
+  "colorDim": "rgba(244,239,228,0.6)",
   "colorAccent": "#d7b56a",
   "fontStack": "\"Hiragino Kaku Gothic ProN\",\"Yu Gothic\",-apple-system,BlinkMacSystemFont,sans-serif",
   "introEyebrow": "PERMANENT COLLECTION",
   "introHeading": "いつでも、名画をそばに。",
   "introBody": "美術館へ足を運ばなくても、いつでも、どこからでも鑑賞できるオンラインギャラリーです。浮世絵を中心とした日本絵画の名品を、スライドショーと作品一覧の両方からお楽しみいただけます。右上のメニューから、作者・年代・流派／技法ごとに作品を絞り込むことも可能です。",
-  "footerDisclaimer": "本サイトはデモンストレーションであり、掲載作品はすべて著作権保護期間が満了した日本絵画(浮世絵中心)です。画像はWikimedia Commons経由で、各収蔵美術館(メトロポリタン美術館、ボストン美術館、LACMA、ブルックリン美術館ほか)が公開しているパブリックドメイン/CC0データを参照しています。実運用では自社サーバー/CDNへの移行を推奨します。",
+  "footerDisclaimer": "掲載作品はすべて著作権保護期間が満了した日本絵画(浮世絵中心)です。画像はWikimedia Commons経由で、各収蔵美術館(メトロポリタン美術館、ボストン美術館、LACMA、ブルックリン美術館ほか)が公開しているパブリックドメイン/CC0データを参照しています。",
   "footerCopy": "© THE GALLERY — Virtual Museum Experience Demo"
 }
