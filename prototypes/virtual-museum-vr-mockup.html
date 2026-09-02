@@ -78,6 +78,7 @@
   #artwork-modal .info dl{display:grid;grid-template-columns:84px 1fr;row-gap:8px;column-gap:10px;margin:0;}
   #artwork-modal .info dt{font-size:10px;letter-spacing:.15em;color:var(--text-dim);}
   #artwork-modal .info dd{font-size:12.5px;color:var(--text);margin:0;}
+  #artwork-modal .info .caption-text{font-size:12.5px;line-height:1.9;color:var(--text-dim);margin:16px 0 0;}
   #artwork-modal .close-btn{
     position:absolute;top:16px;right:18px;
     background:none;border:1px solid var(--hairline);color:var(--text-dim);
@@ -308,7 +309,8 @@
             <dt>年代</dt><dd id="modal-era">ー(未設定)</dd>
             <dt>流派・技法</dt><dd id="modal-technique">ー(未設定)</dd>
           </dl>
-          <p class="note">実装時はここに実サイトと同じ作者・年代・流派/技法のデータを差し込みます。画像は現在プレースホルダーです。</p>
+          <p class="caption-text" id="modal-caption"></p>
+          <p class="note">作者・年代・流派/技法・解説文は本番コレクション(data/works.json)の実データを使用しています。館内での展示位置・組み合わせは検証用の仮のものです。</p>
         </div>
       </div>
     </div>
@@ -407,22 +409,39 @@
     13: 'https://commons.wikimedia.org/wiki/Special:FilePath/Kitagawa%20Utamaro%20-%20Toji%20san%20bijin%20(Three%20Beauties%20of%20the%20Present%20Day)From%20Bijin-ga%20(Pictures%20of%20Beautiful%20Women)%2C%20published%20by%20Tsutaya%20Juzaburo%20-%20Google%20Art%20Project.jpg?width=1600',
     14: 'https://commons.wikimedia.org/wiki/Special:FilePath/Tosa%20Mitsuoki%20-%20Quail%20and%20Autumn%20Flowers%20-%2036.100.52%20-%20Metropolitan%20Museum%20of%20Art.jpg?width=1600',
   };
+  /* 本番コレクション(../data/works.json)の実データを使用。年代・技法・解説文は
+     いずれも同ファイルの year/medium/caption フィールドをそのまま転記している。 */
   var ARTWORK_INFO = {
-    0:  { title:'凱風快晴(赤富士)', artist:'葛飾北斎', era:'天保2年頃(1831年頃)', technique:'木版画・多色摺(冨嶽三十六景)、原寸 約26×38cm' },
-    1:  { title:'甲州石班沢', artist:'葛飾北斎', era:'天保2年頃(1831年頃)', technique:'木版画(冨嶽三十六景)、原寸 約26×38cm' },
-    2:  { title:'駿州江尻', artist:'葛飾北斎', era:'天保2年頃(1831年頃)', technique:'木版画(冨嶽三十六景)、原寸 約26×38cm' },
-    3:  { title:'下野黒髪山きりふりの滝', artist:'葛飾北斎', era:'天保初期頃(1830年代)', technique:'木版画、原寸 約26×38cm' },
-    4:  { title:'大はしあたけの夕立', artist:'歌川広重', era:'安政4年(1857年)', technique:'木版画(名所江戸百景)、原寸 約35.5×24.5cm' },
-    5:  { title:'蒲原 夜之雪', artist:'歌川広重', era:'天保年間(1830年代)', technique:'木版画(東海道五十三次)、原寸 約26×38cm' },
-    6:  { title:'亀戸梅屋舗', artist:'歌川広重', era:'安政3-4年頃(1856-57年)', technique:'木版画(名所江戸百景)、原寸 約35.5×24.5cm' },
-    7:  { title:'庄野 白雨', artist:'歌川広重', era:'天保4-5年頃(1833-34年)', technique:'木版画(東海道五十三次・保永堂版)、原寸 約26×38cm' },
-    8:  { title:'風神雷神図屏風', artist:'俵屋宗達', era:'江戸時代前期(17世紀)', technique:'紙本金地著色・二曲一双屏風、原寸 169.8×154.5cm(1隻)' },
-    9:  { title:'八橋図屏風', artist:'尾形光琳', era:'江戸時代中期(18世紀初頭)', technique:'紙本金地著色・六曲一双屏風、原寸 371.5×179.1cm(1隻)' },
-    10: { title:'檜図屏風', artist:'狩野永徳', era:'安土桃山時代(16世紀)', technique:'紙本金地著色屏風、原寸 460.5×170.3cm' },
-    11: { title:'三代目大谷鬼次の奴江戸兵衛', artist:'東洲斎写楽', era:'寛政6年(1794年)', technique:'木版画・雲母摺(大首絵)、原寸 約25×35.5cm' },
-    12: { title:'神奈川沖浪裏', artist:'葛飾北斎', era:'文政6年頃(1831年頃)', technique:'木版画・多色摺(浮世絵)、原寸は約26×38cmですが、本展示室ではメイン展示として拡大して掲示しています' },
-    13: { title:'当時三美人', artist:'喜多川歌麿', era:'寛政年間(1790年代)', technique:'木版画(美人画)、原寸 約25×38cm' },
-    14: { title:'鶉図', artist:'土佐光起', era:'江戸時代前期(17世紀)', technique:'絹本著色・掛軸、原寸 41.6×97.8cm' },
+    0:  { title:'凱風快晴 (Fine Wind, Clear Morning / "Red Fuji")', artist:'葛飾北斎 (Katsushika Hokusai)', era:'c. 1830–1832', technique:'木版画(錦絵)・25.7×38cm',
+          caption:'『冨嶽三十六景』のうち、朝焼けに染まる赤富士を描いた一図。夏の澄んだ朝の空気と山肌に走る筋状の陰影が印象的で、単純化された構図の中に富士の雄大さが凝縮されている。' },
+    1:  { title:'甲州石班沢 (Kajikazawa in Kai Province)', artist:'葛飾北斎 (Katsushika Hokusai)', era:'c. 1830–1832', technique:'木版画(藍摺絵)・26×38.4cm',
+          caption:'富士川と釜無川の合流点、鰍沢での川漁の様子を描く。険しい岩場に立つ釣り人の緊張感と遠景に浮かぶ富士の静けさが対照をなし、藍摺絵による初期摺りは特に高く評価されている。' },
+    2:  { title:'駿州江尻 (Ejiri in Suruga Province)', artist:'葛飾北斎 (Katsushika Hokusai)', era:'c. 1830–1832', technique:'木版画(錦絵)・25.1×37.5cm',
+          caption:'東海道の宿場、江尻を通りかかった旅人たちが突風に見舞われる瞬間を捉えた一図。笠や紙が宙に舞う動的な構図は、北斎の観察眼と諧謔味あふれる筆致をよく示している。' },
+    3:  { title:'諸国滝廻り 下野黒髪山きりふりの滝 (Kirifuri Waterfall at Kurokami Mountain)', artist:'葛飾北斎 (Katsushika Hokusai)', era:'c. 1831–1832', technique:'木版画(錦絵)・37.6×25.7cm',
+          caption:'『諸国滝廻り』の一図。下野国黒髪山の霧降ノ滝を、水流を意匠化した装飾的な曲線で表現している。実景を離れた大胆なデフォルメは、晩年の北斎における創造性の高さを物語る。' },
+    4:  { title:'名所江戸百景 大はしあたけの夕立 (Sudden Shower over Shin-Ōhashi Bridge and Atake)', artist:'歌川広重 (Utagawa Hiroshige)', era:'1857', technique:'木版画(錦絵)・37.5×24.4cm',
+          caption:'『名所江戸百景』屈指の名作とされる一図。夕立に見舞われた大橋を行き交う人々が、簡潔な斜線で表された雨脚とともに生き生きと描かれる。ゴッホが油彩で模写したことでも知られる。' },
+    5:  { title:'東海道五十三次 蒲原・夜之雪 (Kambara: Night Snow)', artist:'歌川広重 (Utagawa Hiroshige)', era:'c. 1833–1834', technique:'木版画(錦絵)・22.4×34.3cm',
+          caption:'雪に覆われた蒲原宿の夜を描いた一図。温暖なこの地に実際の雪はほとんど降らなかったとされるが、静寂と詩情に満ちた構成は同シリーズ随一の傑作と評される。' },
+    6:  { title:'名所江戸百景 亀戸梅屋舗 (Plum Estate, Kameido)', artist:'歌川広重 (Utagawa Hiroshige)', era:'1857', technique:'木版画(錦絵)・22.6×34.3cm',
+          caption:'亀戸梅屋敷の名木「臥龍梅」を大胆な近景構図で描く。梅の古木を画面いっぱいに配し、遠景の人々を小さく配することで奥行きを演出する斬新な構図が特徴である。' },
+    7:  { title:'東海道五十三次 庄野・白雨 (Shōno: Sudden Rain)', artist:'歌川広重 (Utagawa Hiroshige)', era:'c. 1833–1834', technique:'木版画(錦絵)・25×36.5cm',
+          caption:'庄野宿での突然の驟雨を描く。斜めに走る雨脚と、坂を上り下りする旅人たちの動きが画面に強い緊張感を与えており、実景によらない広重の卓越した演出力を示す一図である。' },
+    8:  { title:'風神雷神図屏風 (Wind God and Thunder God)', artist:'俵屋宗達 (Tawaraya Sōtatsu)', era:'c. 1621–1639', technique:'二曲一双屏風(紙本金地著色)・169.8×154.5cm(各)',
+          caption:'俵屋宗達による国宝の屏風絵。金地の中央を大きく開け、左右に風神・雷神を配する大胆な構図は、後の光琳・抱一らによって幾度も模写され、琳派の様式的規範となった。' },
+    9:  { title:'八橋図屏風 (Irises at Yatsuhashi / Eight Bridges)', artist:'尾形光琳 (Ogata Kōrin)', era:'after 1709', technique:'六曲一双屏風(紙本金地著色)・179.1×371.5cm(各)',
+          caption:'『伊勢物語』八橋の段に取材した六曲一双の屏風。金地の上に群青と緑青のみで表された燕子花の反復的な配置は、光琳装飾芸術の頂点を示すものとして名高い。' },
+    10: { title:'檜図屏風 (Cypress Trees)', artist:'狩野永徳 (Kanō Eitoku)', era:'c. 1590', technique:'八曲一隻屏風(紙本金地著色)・170×460.5cm',
+          caption:'巨大な檜の古木を金地に描いた狩野永徳晩年の傑作。太い墨線と力強い枝ぶりの表現は、桃山時代の武将たちが好んだ豪壮華麗な障壁画様式を象徴する一作である。' },
+    11: { title:'大谷鬼次の奴江戸兵衛 (The Actor Ōtani Oniji III as Yakko Edobei)', artist:'東洲斎写楽 (Tōshūsai Sharaku)', era:'1794', technique:'木版画(大首絵)・38.1×22.9cm',
+          caption:'寛政六年、わずか十ヶ月の活動期間に多くの傑作を残した写楽による大首絵。奴江戸兵衛を演じる二代目大谷鬼次の、憤怒の表情と手の動きを誇張して捉えた迫真の役者絵である。' },
+    12: { title:'神奈川沖浪裏 (The Great Wave off Kanagawa)', artist:'葛飾北斎 (Katsushika Hokusai)', era:'c. 1830–1832', technique:'木版画(錦絵)・原寸 25.7×37.9cmですが、本展示室ではメイン展示として拡大して掲示しています',
+          caption:'『冨嶽三十六景』の代表作。荒れ狂う波涛の彼方に小さく富士山が描かれ、自然の圧倒的な力とその中に佇む人間の存在が対比的に表現されている。西洋美術にも大きな影響を与えた、北斎の名を世界に知らしめた一枚である。' },
+    13: { title:'当時三美人 (Three Beauties of the Present Day)', artist:'喜多川歌麿 (Kitagawa Utamaro)', era:'c. 1792–1793', technique:'木版画(錦絵)・38.7×26.2cm',
+          caption:'当代を代表する三人の美女、富本豊雛・難波屋おきた・高島おひさを三角形の構図の中に配した歌麿の代表作。それぞれの家紋によって人物が特定できる趣向が凝らされている。' },
+    14: { title:'鶉図 (Quail and Autumn Flowers)', artist:'土佐光起 (Tosa Mitsuoki)', era:'c. 1667–1699', technique:'絹本著色・掛軸・97.8×41.6cm',
+          caption:'秋草の中に佇む鶉を描いた土佐光起の一図。丹念な写生に基づく細密な描写と大和絵の伝統に根ざした優美な色彩感覚が融合しており、近世やまと絵の到達点を示している。' },
   };
   var textureLoader = new THREE.TextureLoader();
   textureLoader.crossOrigin = 'anonymous';
@@ -1011,6 +1030,7 @@
   var modalArtist = document.getElementById('modal-artist');
   var modalEra = document.getElementById('modal-era');
   var modalTechnique = document.getElementById('modal-technique');
+  var modalCaption = document.getElementById('modal-caption');
   var modalOpen = false;
   var focusedFrame = null;
 
@@ -1022,6 +1042,7 @@
     modalArtist.textContent = info.artist || 'ー(未設定)';
     modalEra.textContent = info.era || 'ー(未設定)';
     modalTechnique.textContent = info.technique || 'ー(未設定)';
+    modalCaption.textContent = info.caption || '';
     if(f.imageUrl){ modalImg.src = f.imageUrl; }
     else if(f.canvasImg && f.canvasImg.toDataURL){ modalImg.src = f.canvasImg.toDataURL(); }
     else { modalImg.removeAttribute('src'); }
