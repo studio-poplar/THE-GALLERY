@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>THE GALLERY — AR/VR ウォークスルー モックアップ</title>
+<style>
+  :root{
+    --bg:#0f0e0c;
+    --panel-bg:rgba(19,17,14,0.86);
+    --panel-border:rgba(184,149,92,0.28);
+    --gold:#b8955c;
+    --gold-bright:#e0c084;
+    --vermilion:#9b3a2e;
+    --text:#ede7da;
+    --text-dim:#a89f8d;
+    --hairline:rgba(184,149,92,0.35);
+    --serif:'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif;
+    --sans:'Hiragino Sans','Yu Gothic','Hiragino Kaku Gothic ProN',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:var(--sans);overflow:hidden;
+  }
+  #app{position:fixed;inset:0;display:flex;}
+
+  /* ---------- Viewport ---------- */
+  #viewport{position:relative;flex:1;min-width:0;}
+  #canvas-3d{position:absolute;inset:0;display:block;cursor:default;touch-action:none;}
+  #canvas-3d.dragging{cursor:grabbing;}
+  #vignette{
+    position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse at center, transparent 52%, rgba(5,4,3,0.55) 100%);
+  }
+
+  /* aim reticle + "tap to view" hint */
+  #reticle{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:10px;height:10px;border-radius:50%;
+    border:1.5px solid rgba(224,192,132,0.55);
+    opacity:0;transition:opacity .25s ease, transform .25s ease, background .25s ease;
+    pointer-events:none;
+  }
+  #reticle.show{opacity:1;}
+  #reticle.target{
+    width:15px;height:15px;background:rgba(224,192,132,0.85);
+    border-color:#fff2d6;transform:translate(-50%,-50%) scale(1.15);
+  }
+  #look-hint{
+    position:absolute;left:50%;top:calc(50% + 22px);transform:translateX(-50%);
+    font-size:10.5px;letter-spacing:.08em;color:var(--gold-bright);
+    background:rgba(12,11,9,0.55);border:1px solid var(--panel-border);
+    padding:4px 10px;border-radius:2px;
+    opacity:0;transition:opacity .2s ease;pointer-events:none;white-space:nowrap;
+  }
+  #look-hint.show{opacity:1;}
+
+  /* artwork detail modal — mirrors the live site's own caption / filter fields */
+  #artwork-modal{
+    position:absolute;inset:0;background:rgba(6,5,4,0.86);
+    display:none;align-items:center;justify-content:center;padding:32px;
+    z-index:20;
+  }
+  #artwork-modal.show{display:flex;}
+  #artwork-modal .card{
+    background:#161310;border:1px solid var(--panel-border);
+    max-width:640px;width:100%;max-height:90%;overflow:auto;
+    display:flex;flex-direction:column;
+  }
+  #artwork-modal .image-wrap{
+    background:#0c0b09;display:flex;align-items:center;justify-content:center;
+    padding:26px;border-bottom:1px solid var(--panel-border);
+  }
+  #artwork-modal .image-wrap img{max-width:100%;max-height:340px;display:block;box-shadow:0 10px 30px rgba(0,0,0,0.5);}
+  #artwork-modal .info{padding:22px 26px 26px;position:relative;}
+  #artwork-modal .info h3{font-family:var(--serif);font-weight:500;font-size:19px;margin:0 0 14px;color:var(--gold-bright);}
+  #artwork-modal .info dl{display:grid;grid-template-columns:84px 1fr;row-gap:8px;column-gap:10px;margin:0;}
+  #artwork-modal .info dt{font-size:10px;letter-spacing:.15em;color:var(--text-dim);}
+  #artwork-modal .info dd{font-size:12.5px;color:var(--text);margin:0;}
+  #artwork-modal .close-btn{
+    position:absolute;top:16px;right:18px;
+    background:none;border:1px solid var(--hairline);color:var(--text-dim);
+    width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;line-height:1;
+  }
+  #artwork-modal .close-btn:hover,#artwork-modal .close-btn:focus-visible{color:var(--gold-bright);border-color:var(--gold);}
+  #artwork-modal .note{font-size:10.5px;color:rgba(168,159,141,0.6);margin-top:16px;line-height:1.7;}
+
+  /* top bar */
+  #topbar{
+    position:absolute;top:0;left:0;right:0;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 22px;pointer-events:none;
+    background:linear-gradient(to bottom, rgba(10,9,7,0.75), rgba(10,9,7,0));
+  }
+  #wordmark{
+    font-family:var(--serif);letter-spacing:0.28em;font-size:13px;color:var(--gold-bright);
+  }
+  #wordmark small{
+    display:block;font-family:var(--sans);letter-spacing:0.08em;font-size:10px;color:var(--text-dim);margin-top:4px;
+  }
+  #fullscreen-btn{
+    pointer-events:auto;
+    background:rgba(15,14,12,0.55);border:1px solid var(--hairline);
+    color:var(--text-dim);border-radius:3px;padding:7px 12px;
+    font-family:var(--sans);font-size:11px;letter-spacing:0.05em;cursor:pointer;
+    transition:color .2s,border-color .2s;
+  }
+  #fullscreen-btn:hover,#fullscreen-btn:focus-visible{color:var(--gold-bright);border-color:var(--gold);}
+
+  /* mode banner (off state) */
+  #mode-banner{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    text-align:center;pointer-events:none;
+    opacity:0;transition:opacity .5s ease;
+  }
+  #mode-banner.show{opacity:1;}
+  #mode-banner .eyebrow{font-size:10px;letter-spacing:0.3em;color:var(--gold);margin-bottom:10px;}
+  #mode-banner h2{font-family:var(--serif);font-weight:500;font-size:22px;margin:0 0 8px;color:var(--text);}
+  #mode-banner p{font-size:12px;color:var(--text-dim);margin:0;}
+
+  /* caption card near an artwork */
+  #caption{
+    position:absolute;left:50%;bottom:118px;transform:translate(-50%,10px);
+    background:var(--panel-bg);border:1px solid var(--panel-border);
+    padding:10px 18px;border-radius:2px;text-align:center;
+    opacity:0;transition:opacity .35s ease, transform .35s ease;pointer-events:none;
+    max-width:280px;
+  }
+  #caption.show{opacity:1;transform:translate(-50%,0);}
+  #caption .num{font-family:var(--serif);color:var(--gold-bright);font-size:11px;letter-spacing:.15em;}
+  #caption .cap{font-size:11px;color:var(--text-dim);margin-top:3px;}
+
+  /* control hints */
+  #hints{
+    position:absolute;left:50%;bottom:22px;transform:translateX(-50%);
+    display:flex;gap:18px;align-items:center;
+    font-size:10.5px;color:var(--text-dim);letter-spacing:.03em;
+    opacity:0;transition:opacity .4s ease;pointer-events:none;
+    text-align:center;
+  }
+  #hints.show{opacity:1;}
+  #hints span{display:flex;align-items:center;gap:6px;}
+  #hints kbd{
+    border:1px solid var(--hairline);border-radius:2px;padding:1px 5px;
+    font-family:var(--sans);font-size:10px;color:var(--gold-bright);background:rgba(184,149,92,0.08);
+  }
+
+  /* D-pad */
+  #dpad{
+    position:absolute;right:24px;bottom:24px;width:132px;height:132px;
+    display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+    opacity:0;transform:scale(.9);transition:opacity .35s ease, transform .35s ease;pointer-events:none;
+  }
+  #dpad.show{opacity:1;transform:scale(1);pointer-events:auto;}
+  #dpad button{
+    background:rgba(15,14,12,0.55);border:1px solid var(--hairline);color:var(--gold-bright);
+    font-size:14px;cursor:pointer;user-select:none;-webkit-user-select:none;
+    display:flex;align-items:center;justify-content:center;
+  }
+  #dpad button:active{background:rgba(184,149,92,0.28);}
+  #dpad .up{grid-column:2;grid-row:1;border-radius:4px 4px 0 0;}
+  #dpad .left{grid-column:1;grid-row:2;border-radius:0;}
+  #dpad .center{grid-column:2;grid-row:2;background:rgba(15,14,12,0.3);border-color:rgba(184,149,92,0.15);color:var(--text-dim);font-size:9px;letter-spacing:.1em;cursor:default;}
+  #dpad .right{grid-column:3;grid-row:2;}
+  #dpad .down{grid-column:2;grid-row:3;border-radius:0 0 4px 4px;}
+
+  /* minimap */
+  #minimap{
+    position:absolute;left:22px;bottom:22px;
+    background:rgba(12,11,9,0.72);border:1px solid var(--panel-border);
+    padding:10px;border-radius:2px;opacity:0;transition:opacity .4s ease;pointer-events:none;
+  }
+  #minimap.show{opacity:1;}
+  #minimap .label{font-size:9px;letter-spacing:.2em;color:var(--gold);margin-bottom:6px;text-align:center;}
+  #minimap canvas{display:block;}
+
+  /* ---------- Sidebar ---------- */
+  #sidebar{
+    width:300px;flex-shrink:0;background:var(--panel-bg);
+    border-left:1px solid var(--panel-border);
+    display:flex;flex-direction:column;
+    padding:26px 24px;overflow-y:auto;
+  }
+  #sidebar .brand{margin-bottom:26px;}
+  #sidebar .brand .eyebrow{font-size:10px;letter-spacing:.32em;color:var(--gold);}
+  #sidebar .brand h1{
+    font-family:var(--serif);font-weight:500;font-size:21px;margin:8px 0 0;color:var(--text);
+    letter-spacing:.02em;
+  }
+  .hr{height:1px;background:var(--hairline);margin:20px 0;border:none;}
+
+  .field-label{font-size:10px;letter-spacing:.2em;color:var(--text-dim);margin-bottom:12px;}
+
+  .switch-row{
+    display:flex;align-items:center;justify-content:space-between;
+    background:rgba(0,0,0,0.18);border:1px solid var(--panel-border);
+    padding:14px 16px;border-radius:3px;
+  }
+  .switch-row .name{font-family:var(--serif);font-size:15px;color:var(--text);}
+  .switch-row .state{font-size:10px;letter-spacing:.1em;color:var(--text-dim);margin-top:3px;}
+  .switch-row .state.on{color:var(--gold-bright);}
+
+  #fp-toggle{
+    position:relative;width:46px;height:25px;border-radius:20px;
+    background:rgba(184,149,92,0.18);border:1px solid var(--hairline);
+    cursor:pointer;flex-shrink:0;padding:0;transition:background .25s ease;
+  }
+  #fp-toggle .knob{
+    position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;
+    background:var(--text-dim);transition:transform .25s ease, background .25s ease;
+  }
+  #fp-toggle[aria-checked="true"]{background:rgba(184,149,92,0.55);border-color:var(--gold);}
+  #fp-toggle[aria-checked="true"] .knob{transform:translateX(21px);background:var(--gold-bright);}
+  #fp-toggle:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px;}
+
+  #status-desc{font-size:12px;line-height:1.9;color:var(--text-dim);margin-top:16px;}
+
+  #guide-list{list-style:none;margin:16px 0 0;padding:0;display:none;flex-direction:column;gap:10px;}
+  #guide-list.show{display:flex;}
+  #guide-list li{
+    display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-dim);
+  }
+  #guide-list .icon{
+    width:26px;height:26px;flex-shrink:0;border:1px solid var(--hairline);border-radius:3px;
+    display:flex;align-items:center;justify-content:center;color:var(--gold-bright);font-size:12px;
+  }
+
+  #location-box{margin-top:auto;padding-top:20px;}
+  #location-box .field-label{margin-bottom:10px;}
+  #location-now{
+    font-family:var(--serif);font-size:16px;color:var(--gold-bright);
+  }
+  #location-sub{font-size:10.5px;color:var(--text-dim);margin-top:4px;letter-spacing:.05em;}
+
+  #footer-credit{font-size:9.5px;color:rgba(168,159,141,0.55);letter-spacing:.05em;margin-top:22px;}
+
+  /* mobile */
+  @media (max-width: 760px){
+    #app{flex-direction:column;}
+    #sidebar{
+      width:100%;order:2;border-left:none;border-top:1px solid var(--panel-border);
+      max-height:44vh;padding:18px 20px;
+    }
+    #viewport{order:1;flex:1;}
+    #dpad{right:16px;bottom:16px;width:114px;height:114px;}
+    #minimap{display:none;}
+    #location-box{margin-top:16px;}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    * { transition-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="viewport">
+    <canvas id="canvas-3d"></canvas>
+    <div id="vignette"></div>
+
+    <div id="topbar">
+      <div id="wordmark">THE GALLERY<small>AR / VR WALKTHROUGH — MOCKUP</small></div>
+      <button id="fullscreen-btn" type="button">全画面表示</button>
+    </div>
+
+    <div id="mode-banner">
+      <div class="eyebrow">OVERVIEW</div>
+      <h2>館内を見渡しています</h2>
+      <p>サイドバーの「一人称視点」をONにすると、<br>来場者と同じ目線で回廊を歩き回れます</p>
+    </div>
+
+    <div id="caption">
+      <div class="num">作品 —</div>
+      <div class="cap">近づくと詳しい情報がここに表示されます</div>
+    </div>
+
+    <div id="hints">
+      <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / 矢印キー — 移動</span>
+      <span>マウスを動かす — 視点を回転(スマホはスワイプ)</span>
+    </div>
+
+    <div id="dpad">
+      <button class="up" type="button" aria-label="前に進む" data-dir="forward">▲</button>
+      <button class="left" type="button" aria-label="左に移動" data-dir="left">◀</button>
+      <div class="center">歩く</div>
+      <button class="right" type="button" aria-label="右に移動" data-dir="right">▶</button>
+      <button class="down" type="button" aria-label="後ろに下がる" data-dir="back">▼</button>
+    </div>
+
+    <div id="reticle"></div>
+    <div id="look-hint">クリックして鑑賞する</div>
+
+    <div id="minimap">
+      <div class="label">現在地</div>
+      <canvas id="minimap-canvas" width="120" height="200"></canvas>
+    </div>
+
+    <div id="artwork-modal">
+      <div class="card">
+        <div class="image-wrap"><img id="modal-img" alt=""></div>
+        <div class="info">
+          <button class="close-btn" id="modal-close" aria-label="閉じる" type="button">×</button>
+          <h3 id="modal-title">作品 —</h3>
+          <dl>
+            <dt>作者</dt><dd id="modal-artist">ー(未設定)</dd>
+            <dt>年代</dt><dd id="modal-era">ー(未設定)</dd>
+            <dt>流派・技法</dt><dd id="modal-technique">ー(未設定)</dd>
+          </dl>
+          <p class="note">実装時はここに実サイトと同じ作者・年代・流派/技法のデータを差し込みます。画像は現在プレースホルダーです。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="eyebrow">EXHIBITION MODE</div>
+      <h1>館内ウォークスルー</h1>
+    </div>
+
+    <div class="field-label">表示モード</div>
+    <div class="switch-row">
+      <div>
+        <div class="name">一人称視点</div>
+        <div class="state" id="state-label">OFF ー 全体を見渡す</div>
+      </div>
+      <button id="fp-toggle" role="switch" aria-checked="false" aria-label="一人称視点の切り替え">
+        <div class="knob"></div>
+      </button>
+    </div>
+
+    <p id="status-desc">
+      スイッチをONにすると、来場者ご自身の目線で回廊を歩きながら作品を鑑賞できるモードに切り替わります。グーグルマップのストリートビューのように、進みたい方向へ移動しながら好きな方向を見渡せます。
+    </p>
+
+    <ul id="guide-list">
+      <li><span class="icon">◎</span>マウスを画面上で動かすだけで視点が回転(端に寄せると回転し続けます)</li>
+      <li><span class="icon">↑</span>W A S D または矢印キーで前後左右に移動</li>
+      <li><span class="icon">▦</span>スマホはスワイプで視点回転、画面右下のパッドで移動</li>
+      <li><span class="icon">●</span>作品に近づいて中央のねらいを合わせるとハイライトし、クリック/タップで拡大表示</li>
+    </ul>
+
+    <hr class="hr">
+
+    <div id="location-box">
+      <div class="field-label">現在地</div>
+      <div id="location-now">エントランス</div>
+      <div id="location-sub">サイドバーのスイッチをONにして歩き出してください</div>
+    </div>
+
+    <div id="footer-credit">THE GALLERY — Studio Poplar<br>AR/VRウォークスルー機能 モックアップ</div>
+  </aside>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     Floorplan — a walking loop (回廊) around a solid central
+     hall, with a special-exhibition bay opening off the north
+     side. All units are metres.
+  ============================================================ */
+  var OUTER = {x0:-9,   x1:9,   z0:-13,  z1:13};   // outer perimeter walls
+  var CORE  = {x0:-4,   x1:4,   z0:-6.5, z1:6.5};  // solid central hall (not walkable)
+  var BAY   = {x0:-6,   x1:6,   z0:13,   z1:18};   // special-exhibition bay
+  var CEIL_H = 4.3;
+  var EYE_H  = 1.62;
+  var MOVE_SPEED = 3.4;
+
+  // collision bounds, inset from the physical walls so the camera never clips
+  var OUTER_W = {x0:OUTER.x0+0.35, x1:OUTER.x1-0.35, z0:OUTER.z0+0.35, z1:OUTER.z1-0.35};
+  var CORE_W  = {x0:CORE.x0-0.4,   x1:CORE.x1+0.4,   z0:CORE.z0-0.4,   z1:CORE.z1+0.4};
+  var BAY_W   = {x0:BAY.x0+0.35,   x1:BAY.x1-0.35,   z0:BAY.z0-0.15,   z1:BAY.z1-0.35};
+
+  function inRect(x,z,r){ return x>r.x0 && x<r.x1 && z>r.z0 && z<r.z1; }
+  function withinBounds(x,z){
+    return (inRect(x,z,OUTER_W) && !inRect(x,z,CORE_W)) || inRect(x,z,BAY_W);
+  }
+
+  /* ============================================================
+     Real artwork images — drop in URLs here to replace the
+     placeholder painted textures, keyed by each piece's seed
+     number (seen in the on-screen caption / modal as "作品 0N",
+     where N = seed+1). Leave a seed's entry out to keep the
+     placeholder. Also fill in the matching caption fields below
+     so the modal shows real information instead of "ー(未設定)".
+  ============================================================ */
+  var ARTWORK_IMAGE_URLS = {
+    0:  'https://commons.wikimedia.org/wiki/Special:FilePath/Katsushika%20Hokusai%20-%20Fine%20Wind%2C%20Clear%20Morning%20(Gaif%C5%AB%20kaisei)%20-%20Google%20Art%20Project.jpg?width=1600',
+    1:  'https://commons.wikimedia.org/wiki/Special:FilePath/%E5%86%A8%E5%B6%BD%E4%B8%89%E5%8D%81%E5%85%AD%E6%99%AF%20%E7%94%B2%E5%B7%9E%E7%9F%B3%E7%8F%AD%E6%B2%A2-Kajikazawa%20in%20Kai%20Province%20(K%C5%8Dsh%C5%AB%20Kajikazawa)%2C%20from%20the%20series%20Thirty-six%20Views%20of%20Mount%20Fuji%20(Fugaku%20sanj%C5%ABrokkei)%20MET%20DP141085.jpg?width=1600',
+    2:  'https://commons.wikimedia.org/wiki/Special:FilePath/%E5%86%A8%E5%B6%BD%E4%B8%89%E5%8D%81%E5%85%AD%E6%99%AF%20%E9%A7%BF%E5%B7%9E%E6%B1%9F%E5%B0%BB-Ejiri%20in%20Suruga%20Province%20(Sunsh%C5%AB%20Ejiri)%2C%20from%20the%20series%20Thirty-six%20Views%20of%20Mount%20Fuji%20(Fugaku%20sanj%C5%ABrokkei)%20MET%20DP141046.jpg?width=1600',
+    3:  'https://commons.wikimedia.org/wiki/Special:FilePath/Katsushika%20Hokusai%2C%20Japanese%20-%20Pilgrims%20at%20Kirifuri%20Waterfall%20on%20Mount%20Kurokami%20in%20Shimotsuke%20Province%20-%20Google%20Art%20Project.jpg?width=1600',
+    4:  'https://commons.wikimedia.org/wiki/Special:FilePath/%C5%8Chashi%20Atake%20no%20y%C5%ABdachi-%E5%90%8D%E6%89%80%E6%B1%9F%E6%88%B8%E7%99%BE%E6%99%AF%20%E5%A4%A7%E3%81%AF%E3%81%97%E3%81%82%E3%81%9F%E3%81%91%E3%81%AE%E5%A4%95%E7%AB%8B-Sudden%20Shower%20over%20Shin-%C5%8Chashi%20Bridge%20and%20Atake%20(%C5%8Chashi%20Atake%20no%20y%C5%ABdachi)%2C%20from%20the%20series%20One%20Hundred%20Famous%20Views%20of%20Edo%20(Meisho%20Edo%20hyakkei)%20MET%20DP123602.jpg?width=1600',
+    5:  'https://commons.wikimedia.org/wiki/Special:FilePath/Evening%20Snow%20at%20Kambara%20LACMA%20M.49.5.1.jpg?width=1600',
+    6:  'https://commons.wikimedia.org/wiki/Special:FilePath/Ando%20Hiroshige%20-%20Plum%20Garden%2C%20Kameido%20-%20Google%20Art%20Project.jpg?width=1600',
+    7:  'https://commons.wikimedia.org/wiki/Special:FilePath/Utagawa%20Hiroshige%20(the%20first)%20-%20Shono%20from%20the%20Fifty-three%20Stations%20on%20Tokaido%20Highway%2C%20Hoeido%20version%20-%20Google%20Art%20Project.jpg?width=1600',
+    8:  'https://commons.wikimedia.org/wiki/Special:FilePath/Wind%20God%20and%20Thunder%20God%20Screens%20by%20Tawaraya%20Sotatsu%20hi-res.png?width=1600',
+    9:  'https://commons.wikimedia.org/wiki/Special:FilePath/%E5%85%AB%E6%A9%8B%E5%9B%B3%E5%B1%8F%E9%A2%A8%20-Irises%20at%20Yatsuhashi%20(Eight%20Bridges)%20MET%20DP153048.jpg?width=1600',
+    10: 'https://commons.wikimedia.org/wiki/Special:FilePath/Kano%20Eitoku%20-%20Cypress%20Trees.jpg?width=1600',
+    11: 'https://commons.wikimedia.org/wiki/Special:FilePath/Toshusai%20Sharaku-%20Otani%20Oniji%2C%201794.jpg?width=1600',
+    12: 'https://commons.wikimedia.org/wiki/Special:FilePath/The%20Great%20Wave%20off%20Kanagawa.jpg?width=1600',
+    13: 'https://commons.wikimedia.org/wiki/Special:FilePath/Kitagawa%20Utamaro%20-%20Toji%20san%20bijin%20(Three%20Beauties%20of%20the%20Present%20Day)From%20Bijin-ga%20(Pictures%20of%20Beautiful%20Women)%2C%20published%20by%20Tsutaya%20Juzaburo%20-%20Google%20Art%20Project.jpg?width=1600',
+    14: 'https://commons.wikimedia.org/wiki/Special:FilePath/Tosa%20Mitsuoki%20-%20Quail%20and%20Autumn%20Flowers%20-%2036.100.52%20-%20Metropolitan%20Museum%20of%20Art.jpg?width=1600',
+  };
+  var ARTWORK_INFO = {
+    0:  { title:'凱風快晴(赤富士)', artist:'葛飾北斎', era:'天保2年頃(1831年頃)', technique:'木版画・多色摺(冨嶽三十六景)、原寸 約26×38cm' },
+    1:  { title:'甲州石班沢', artist:'葛飾北斎', era:'天保2年頃(1831年頃)', technique:'木版画(冨嶽三十六景)、原寸 約26×38cm' },
+    2:  { title:'駿州江尻', artist:'葛飾北斎', era:'天保2年頃(1831年頃)', technique:'木版画(冨嶽三十六景)、原寸 約26×38cm' },
+    3:  { title:'下野黒髪山きりふりの滝', artist:'葛飾北斎', era:'天保初期頃(1830年代)', technique:'木版画、原寸 約26×38cm' },
+    4:  { title:'大はしあたけの夕立', artist:'歌川広重', era:'安政4年(1857年)', technique:'木版画(名所江戸百景)、原寸 約35.5×24.5cm' },
+    5:  { title:'蒲原 夜之雪', artist:'歌川広重', era:'天保年間(1830年代)', technique:'木版画(東海道五十三次)、原寸 約26×38cm' },
+    6:  { title:'亀戸梅屋舗', artist:'歌川広重', era:'安政3-4年頃(1856-57年)', technique:'木版画(名所江戸百景)、原寸 約35.5×24.5cm' },
+    7:  { title:'庄野 白雨', artist:'歌川広重', era:'天保4-5年頃(1833-34年)', technique:'木版画(東海道五十三次・保永堂版)、原寸 約26×38cm' },
+    8:  { title:'風神雷神図屏風', artist:'俵屋宗達', era:'江戸時代前期(17世紀)', technique:'紙本金地著色・二曲一双屏風、原寸 169.8×154.5cm(1隻)' },
+    9:  { title:'八橋図屏風', artist:'尾形光琳', era:'江戸時代中期(18世紀初頭)', technique:'紙本金地著色・六曲一双屏風、原寸 371.5×179.1cm(1隻)' },
+    10: { title:'檜図屏風', artist:'狩野永徳', era:'安土桃山時代(16世紀)', technique:'紙本金地著色屏風、原寸 460.5×170.3cm' },
+    11: { title:'三代目大谷鬼次の奴江戸兵衛', artist:'東洲斎写楽', era:'寛政6年(1794年)', technique:'木版画・雲母摺(大首絵)、原寸 約25×35.5cm' },
+    12: { title:'神奈川沖浪裏', artist:'葛飾北斎', era:'文政6年頃(1831年頃)', technique:'木版画・多色摺(浮世絵)、原寸は約26×38cmですが、本展示室ではメイン展示として拡大して掲示しています' },
+    13: { title:'当時三美人', artist:'喜多川歌麿', era:'寛政年間(1790年代)', technique:'木版画(美人画)、原寸 約25×38cm' },
+    14: { title:'鶉図', artist:'土佐光起', era:'江戸時代前期(17世紀)', technique:'絹本著色・掛軸、原寸 41.6×97.8cm' },
+  };
+  var textureLoader = new THREE.TextureLoader();
+  textureLoader.crossOrigin = 'anonymous';
+  function artTextureFor(seed, fallbackFn){
+    var url = ARTWORK_IMAGE_URLS[seed];
+    if(url){
+      var t = textureLoader.load(url, undefined, undefined, function(){
+        console.warn('画像の読み込みに失敗しました(CORS等):', url);
+      });
+      t.encoding = THREE.sRGBEncoding;
+      return t;
+    }
+    return fallbackFn(seed);
+  }
+
+  /* ============================================================
+     Renderer / scene / camera
+  ============================================================ */
+  var canvas = document.getElementById('canvas-3d');
+  var viewport = document.getElementById('viewport');
+  var renderer = new THREE.WebGLRenderer({canvas:canvas, antialias:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+
+  var scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x1c1712);
+  scene.fog = new THREE.Fog(0x1c1712, 18, 44);
+
+  var camera = new THREE.PerspectiveCamera(62, 1, 0.1, 100);
+  camera.rotation.order = 'YXZ';
+
+  function resize(){
+    var w = viewport.clientWidth, h = viewport.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+
+  /* ============================================================
+     Procedural textures (no external images)
+  ============================================================ */
+  function makeCanvas(w,h){
+    var c = document.createElement('canvas'); c.width=w; c.height=h;
+    return c;
+  }
+
+  function plank(ctx,cx,cy,w,h,angleDeg,color){
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(angleDeg*Math.PI/180);
+    ctx.fillStyle = color;
+    ctx.fillRect(-w/2,-h/2,w,h);
+    ctx.strokeStyle = 'rgba(30,18,8,0.35)'; ctx.lineWidth = 1;
+    ctx.strokeRect(-w/2,-h/2,w,h);
+    ctx.restore();
+  }
+
+  function herringboneFloorTexture(){
+    var size = 300, c = makeCanvas(size,size), ctx = c.getContext('2d');
+    ctx.fillStyle = '#7d5c39'; ctx.fillRect(0,0,size,size);
+    var tones = ['#b1804f','#c2925f','#a4744a','#ba8a58','#996b41'];
+    var plankLen = 46, plankW = 15, step = plankLen*0.708;
+    var row = 0;
+    for(var gy=-plankLen; gy<size+plankLen; gy+=step){
+      row++;
+      for(var gx=-plankLen; gx<size+plankLen; gx+=step){
+        var alt = (Math.round(gx/step) + row) % 2;
+        var ang = alt ? 45 : -45;
+        var tone = tones[Math.abs(Math.round(gx*3+gy*7))%tones.length];
+        plank(ctx, gx, gy, plankLen, plankW, ang, tone);
+      }
+    }
+    var tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(6, 10);
+    tex.anisotropy = 4;
+    return tex;
+  }
+
+  // vertical two-tone gallery wall: crown moulding / dark frieze band / main
+  // wall / skirting — one tall strip, tiled horizontally only.
+  function galleryWallTexture(){
+    var w = 96, h = 640, c = makeCanvas(w,h), ctx = c.getContext('2d');
+    // main wall field
+    ctx.fillStyle = '#7d8790'; ctx.fillRect(0,0,w,h);
+    for(var i=0;i<900;i++){
+      ctx.fillStyle = 'rgba(255,255,255,'+(Math.random()*0.025)+')';
+      ctx.fillRect(Math.random()*w, h*0.30+Math.random()*h*0.62, 1, 1);
+    }
+    // dark upper frieze band
+    ctx.fillStyle = '#211f21'; ctx.fillRect(0,0,w,h*0.28);
+    // reveal line under the frieze
+    ctx.fillStyle = '#0b0a0a'; ctx.fillRect(0,h*0.28,w,h*0.016);
+    // vertical wall-panel seams
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 1;
+    for(var s=1;s<3;s++){ var sx=w*s/3; ctx.beginPath(); ctx.moveTo(sx,h*0.30); ctx.lineTo(sx,h*0.97); ctx.stroke(); }
+
+    var tex = new THREE.CanvasTexture(c);
+    tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.anisotropy = 4;
+    return tex;
+  }
+  var wallTexBase = galleryWallTexture();
+  function wallMaterial(width){
+    var t = wallTexBase.clone(); t.needsUpdate = true;
+    t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping;
+    t.repeat.set(Math.max(1, width/3.2), 1);
+    return new THREE.MeshStandardMaterial({map:t, roughness:0.92});
+  }
+
+  // solid central-core partition wall — simpler dark fabric finish
+  function coreWallTexture(){
+    var c = makeCanvas(96,640), ctx = c.getContext('2d');
+    ctx.fillStyle = '#221f1c'; ctx.fillRect(0,0,96,640);
+    for(var i=0;i<700;i++){ ctx.fillStyle='rgba(184,149,92,0.05)'; ctx.fillRect(Math.random()*96,Math.random()*640,1,1); }
+    ctx.fillStyle = '#141210'; ctx.fillRect(0,596,96,44);
+    ctx.fillStyle = 'rgba(184,149,92,0.35)'; ctx.fillRect(0,594,96,3);
+    var tex = new THREE.CanvasTexture(c);
+    tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping;
+    return tex;
+  }
+  var coreTexBase = coreWallTexture();
+  function coreWallMaterial(width){
+    var t = coreTexBase.clone(); t.needsUpdate = true;
+    t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping;
+    t.repeat.set(Math.max(1, width/3.2), 1);
+    return new THREE.MeshStandardMaterial({map:t, roughness:0.85});
+  }
+
+  // hanging-scroll painting field (landscape motif, varied palette)
+  function scrollArtTexture(seed){
+    var c = makeCanvas(220,300), ctx = c.getContext('2d');
+    var palettes = [
+      ['#2c3a52','#c98a4b','#e7c98f'],
+      ['#3a2c36','#9b3a2e','#e0c084'],
+      ['#20303a','#4c6b6f','#e8ddc6'],
+      ['#2a2418','#b8955c','#efe6d2'],
+      ['#232a3a','#7a8fae','#d9c9a3'],
+      ['#301f22','#c1633f','#eadfc4']
+    ];
+    var p = palettes[seed % palettes.length];
+    var grad = ctx.createLinearGradient(0,0,0,300);
+    grad.addColorStop(0,p[0]); grad.addColorStop(1,p[2]);
+    ctx.fillStyle = grad; ctx.fillRect(0,0,220,300);
+    ctx.fillStyle = p[1];
+    ctx.beginPath(); ctx.arc(60+(seed*37)%110, 70, 22, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(10,10,10,0.5)';
+    ctx.beginPath(); ctx.moveTo(0,300);
+    var baseY = 190 + (seed%3)*14;
+    for(var x=0;x<=220;x+=14){
+      ctx.lineTo(x, baseY + Math.sin((x/220*Math.PI*2)+seed)*22);
+    }
+    ctx.lineTo(220,300); ctx.closePath(); ctx.fill();
+    return new THREE.CanvasTexture(c);
+  }
+
+  // folding-screen (byōbu) gold-ground field — continuous image sampled
+  // across all panels via per-panel UV offset
+  function byobuTexture(seed){
+    var c = makeCanvas(768,320), ctx = c.getContext('2d');
+    ctx.fillStyle = seed % 2 ? '#c9a344' : '#d4af5a'; ctx.fillRect(0,0,768,320);
+    for(var i=0;i<500;i++){
+      ctx.fillStyle = 'rgba(255,244,214,'+(Math.random()*0.06)+')';
+      ctx.fillRect(Math.random()*768, Math.random()*320, 2, 2);
+    }
+    ctx.strokeStyle = 'rgba(28,40,26,0.78)'; ctx.lineWidth = 4;
+    for(var k=0;k<7;k++){
+      var bx = 40+k*105, by = 210+Math.sin(k+seed)*30;
+      ctx.beginPath(); ctx.moveTo(bx,320); ctx.quadraticCurveTo(bx+14,by,bx+38,by-55); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(35,64,86,0.5)';
+    ctx.beginPath(); ctx.moveTo(0,320);
+    for(var x=0;x<=768;x+=32){ ctx.lineTo(x, 260 + Math.sin(x/70+seed)*16); }
+    ctx.lineTo(768,320); ctx.closePath(); ctx.fill();
+    return new THREE.CanvasTexture(c);
+  }
+
+  function labelTexture(idx){
+    var c = makeCanvas(300,140), ctx = c.getContext('2d');
+    ctx.fillStyle = '#efe9da'; ctx.fillRect(0,0,300,140);
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 2; ctx.strokeRect(1,1,298,138);
+    ctx.fillStyle = '#1a1712'; ctx.textAlign = 'left';
+    ctx.font = '26px serif'; ctx.fillText('作品 ' + String(idx+1).padStart(2,'0'), 18, 46);
+    ctx.font = '15px sans-serif'; ctx.fillStyle = '#5a5348';
+    ctx.fillText('作者名 ー 制作年代', 18, 78);
+    ctx.fillText('技法・材質(実装時に差し替え)', 18, 102);
+    return new THREE.CanvasTexture(c);
+  }
+
+  function entranceSignTexture(){
+    var c = makeCanvas(512,256), ctx = c.getContext('2d');
+    ctx.fillStyle = '#14110d'; ctx.fillRect(0,0,512,256);
+    ctx.strokeStyle = 'rgba(184,149,92,0.5)'; ctx.lineWidth = 3;
+    ctx.strokeRect(20,20,472,216);
+    ctx.fillStyle = '#e0c084';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '46px serif';
+    ctx.fillText('THE GALLERY', 256, 118);
+    ctx.font = '16px sans-serif';
+    ctx.fillStyle = 'rgba(224,192,132,0.7)';
+    ctx.fillText('回廊をめぐる常設展示', 256, 162);
+    return new THREE.CanvasTexture(c);
+  }
+
+  /* ============================================================
+     Build gallery environment
+  ============================================================ */
+  var floorMat = new THREE.MeshStandardMaterial({map:herringboneFloorTexture(), roughness:0.42, metalness:0.1});
+  var floor = new THREE.Mesh(new THREE.PlaneGeometry(OUTER.x1-OUTER.x0, BAY.z1-OUTER.z0), floorMat);
+  floor.rotation.x = -Math.PI/2;
+  floor.position.set(0, 0, (BAY.z1+OUTER.z0)/2);
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  var ceilMat = new THREE.MeshStandardMaterial({color:0x2a241c, roughness:1});
+  var ceiling = floor.clone(); ceiling.material = ceilMat;
+  ceiling.position.y = CEIL_H; ceiling.rotation.x = Math.PI/2;
+  ceiling.receiveShadow = false;
+  scene.add(ceiling);
+
+  // Walls are real boxes (not flat planes) so corners show true depth and
+  // catch light/shadow like an actual room, rather than reading as a
+  // paper backdrop.
+  var wallBackMat = new THREE.MeshStandardMaterial({color:0x0b0a08, roughness:0.95});
+  function addWall(w,h,x,y,z,ry,mat){
+    var thickness = 0.16;
+    var m = new THREE.Mesh(
+      new THREE.BoxGeometry(w,h,thickness),
+      [wallBackMat,wallBackMat,wallBackMat,wallBackMat, mat || wallMaterial(w), wallBackMat]
+    );
+    var nx = Math.sin(ry), nz = Math.cos(ry);
+    m.position.set(x - nx*thickness/2, y, z - nz*thickness/2);
+    m.rotation.y = ry;
+    m.castShadow = true; m.receiveShadow = true;
+    scene.add(m);
+    return m;
+  }
+
+  // real 3D crown moulding + baseboard (not painted) — the raised edges
+  // catch the ceiling wash and cast a hairline shadow, which is one of
+  // the biggest cues that separates a modelled room from a flat backdrop
+  var crownMat = new THREE.MeshStandardMaterial({color:0xd9d2c0, roughness:0.55});
+  var baseMat  = new THREE.MeshStandardMaterial({color:0x141210, roughness:0.5});
+  var baseTrim = new THREE.MeshStandardMaterial({color:0xb8955c, roughness:0.35, metalness:0.4});
+  function addMoldingSet(w,x,z,ry){
+    var nx = Math.sin(ry), nz = Math.cos(ry);
+    var crown = new THREE.Mesh(new THREE.BoxGeometry(w,0.15,0.07), crownMat);
+    crown.position.set(x+nx*0.045, CEIL_H-0.11, z+nz*0.045);
+    crown.rotation.y = ry; crown.castShadow = true; crown.receiveShadow = true;
+    scene.add(crown);
+    var base = new THREE.Mesh(new THREE.BoxGeometry(w,0.17,0.06), baseMat);
+    base.position.set(x+nx*0.04, 0.085, z+nz*0.04);
+    base.rotation.y = ry; base.castShadow = true; base.receiveShadow = true;
+    scene.add(base);
+    var trim = new THREE.Mesh(new THREE.BoxGeometry(w,0.012,0.063), baseTrim);
+    trim.position.set(x+nx*0.042, 0.165, z+nz*0.042);
+    trim.rotation.y = ry;
+    scene.add(trim);
+  }
+
+  // --- outer perimeter (with a doorway gap into the exhibition bay) ---
+  var outerLenZ = OUTER.z1-OUTER.z0, outerLenX = OUTER.x1-OUTER.x0;
+  addWall(outerLenZ, CEIL_H, OUTER.x0, CEIL_H/2, (OUTER.z0+OUTER.z1)/2, Math.PI/2);   // west
+  addWall(outerLenZ, CEIL_H, OUTER.x1, CEIL_H/2, (OUTER.z0+OUTER.z1)/2, -Math.PI/2);  // east
+  addWall(outerLenX, CEIL_H, 0, CEIL_H/2, OUTER.z0, 0);                              // south (entrance)
+  var gapHalf = (BAY.x1-BAY.x0)/2;
+  var northSegLen = (OUTER.x1-OUTER.x0-2*gapHalf)/2;
+  addWall(northSegLen, CEIL_H, (OUTER.x0-gapHalf)/2, CEIL_H/2, OUTER.z1, Math.PI); // north-west segment
+  addWall(northSegLen, CEIL_H, (OUTER.x1+gapHalf)/2, CEIL_H/2, OUTER.z1, Math.PI); // north-east segment
+  addMoldingSet(outerLenZ, OUTER.x0, (OUTER.z0+OUTER.z1)/2, Math.PI/2);
+  addMoldingSet(outerLenZ, OUTER.x1, (OUTER.z0+OUTER.z1)/2, -Math.PI/2);
+  addMoldingSet(outerLenX, 0, OUTER.z0, 0);
+  addMoldingSet(northSegLen, (OUTER.x0-gapHalf)/2, OUTER.z1, Math.PI);
+  addMoldingSet(northSegLen, (OUTER.x1+gapHalf)/2, OUTER.z1, Math.PI);
+
+  // --- exhibition bay (beyond the doorway) ---
+  addWall(BAY.z1-BAY.z0, CEIL_H, BAY.x0, CEIL_H/2, (BAY.z0+BAY.z1)/2, Math.PI/2);
+  addWall(BAY.z1-BAY.z0, CEIL_H, BAY.x1, CEIL_H/2, (BAY.z0+BAY.z1)/2, -Math.PI/2);
+  var bayNorth = addWall(BAY.x1-BAY.x0, CEIL_H, 0, CEIL_H/2, BAY.z1, Math.PI);
+  addMoldingSet(BAY.z1-BAY.z0, BAY.x0, (BAY.z0+BAY.z1)/2, Math.PI/2);
+  addMoldingSet(BAY.z1-BAY.z0, BAY.x1, (BAY.z0+BAY.z1)/2, -Math.PI/2);
+  addMoldingSet(BAY.x1-BAY.x0, 0, BAY.z1, Math.PI);
+
+  // --- central solid core, faces exposed to the corridor ---
+  var coreLenZ = CORE.z1-CORE.z0, coreLenX = CORE.x1-CORE.x0;
+  addWall(coreLenZ, CEIL_H, CORE.x0, CEIL_H/2, 0, -Math.PI/2, coreWallMaterial(coreLenZ));
+  addWall(coreLenZ, CEIL_H, CORE.x1, CEIL_H/2, 0,  Math.PI/2, coreWallMaterial(coreLenZ));
+  addWall(coreLenX, CEIL_H, 0, CEIL_H/2, CORE.z0, Math.PI, coreWallMaterial(coreLenX));
+  addWall(coreLenX, CEIL_H, 0, CEIL_H/2, CORE.z1, 0,        coreWallMaterial(coreLenX));
+
+  // entrance sign, inside face of the south wall
+  var sign = new THREE.Mesh(new THREE.PlaneGeometry(3.6,1.8), new THREE.MeshBasicMaterial({map:entranceSignTexture()}));
+  sign.position.set(0, 2.1, OUTER.z0+0.02);
+  scene.add(sign);
+
+  // ceiling beams with an integrated warm light strip — echoes a real
+  // museum's coffered/beamed hall ceiling
+  function addBeamRow(z, halfWidth){
+    var beam = new THREE.Mesh(new THREE.BoxGeometry(halfWidth*2, 0.18, 0.22), new THREE.MeshStandardMaterial({color:0x1d1a16, roughness:0.85}));
+    beam.position.set(0, CEIL_H-0.12, z);
+    beam.castShadow = true; beam.receiveShadow = true;
+    scene.add(beam);
+    var strip = new THREE.Mesh(new THREE.PlaneGeometry(halfWidth*2-0.6, 0.09), new THREE.MeshBasicMaterial({color:0xffe9c4}));
+    strip.rotation.x = Math.PI/2; strip.position.set(0, CEIL_H-0.2, z);
+    scene.add(strip);
+  }
+  for(var bz=OUTER.z0+1.5; bz<OUTER.z1; bz+=3){ addBeamRow(bz, (OUTER.x1-OUTER.x0)/2 - 0.3); }
+  for(var bz2=BAY.z0+1.5; bz2<BAY.z1; bz2+=3){ addBeamRow(bz2, (BAY.x1-BAY.x0)/2 - 0.3); }
+
+  // large skylight glow over the central hall, like the sky-lit case room
+  var skylight = new THREE.Mesh(new THREE.PlaneGeometry(4.4,4.4), new THREE.MeshBasicMaterial({color:0xfff3da}));
+  skylight.rotation.x = Math.PI/2; skylight.position.set(0, CEIL_H-0.02, 0);
+  scene.add(skylight);
+
+  // ambient / hemi fill — bright enough to view Japanese paintings comfortably,
+  // while staying warm (low colour temperature, like conservation-grade museum lighting)
+  scene.add(new THREE.HemisphereLight(0xd9c9a8, 0x2a2015, 1.05));
+  scene.add(new THREE.AmbientLight(0x6b5a42, 0.7));
+  var fillA = new THREE.PointLight(0xffedc9, 0.85, 24, 2); fillA.position.set(0, CEIL_H-0.3, 0);
+  fillA.castShadow = true;
+  fillA.shadow.mapSize.set(1024,1024);
+  fillA.shadow.camera.near = 0.3;
+  fillA.shadow.camera.far = 22;
+  fillA.shadow.bias = -0.0015;
+  scene.add(fillA);
+  var fillB = new THREE.PointLight(0xffedc9, 0.5, 18, 2); fillB.position.set(0, CEIL_H-0.3, 15.5); scene.add(fillB);
+  var fillC = new THREE.PointLight(0xffedc9, 0.45, 18, 2); fillC.position.set(-6.5, CEIL_H-0.3, 0); scene.add(fillC);
+  var fillD = new THREE.PointLight(0xffedc9, 0.45, 18, 2); fillD.position.set(6.5, CEIL_H-0.3, 0); scene.add(fillD);
+
+  var frames = []; // {group, x, z, seed, big}
+
+  function addTrackFixture(parent){
+    var fixture = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.07,0.09,0.16,12),
+      new THREE.MeshStandardMaterial({color:0x1a1712, roughness:0.4, metalness:0.6})
+    );
+    fixture.position.set(0, EYE_H-0.05, 1.05);
+    fixture.rotation.x = Math.PI/2.6;
+    parent.add(fixture);
+    var lens = new THREE.Mesh(new THREE.CircleGeometry(0.05,12), new THREE.MeshBasicMaterial({color:0xffe8bd}));
+    lens.position.set(0, EYE_H-0.05, 1.13);
+    lens.rotation.x = Math.PI/2.6;
+    parent.add(lens);
+  }
+
+  // -- hanging scroll (kakejiku): silk mount, wooden rod, wall label --
+  function addHangingScroll(x,z,ry,seed,artW,artH){
+    artW = artW || 0.85; artH = artH || 1.29;
+    var group = new THREE.Group();
+    var borderW = artW + Math.max(0.10, artW*0.22);
+    var borderH = artH + Math.max(0.20, artH*0.32);
+    var border = new THREE.Mesh(new THREE.PlaneGeometry(borderW,borderH), new THREE.MeshStandardMaterial({color:0x5c4632, roughness:0.9}));
+    group.add(border);
+    var artTex = artTextureFor(seed, scrollArtTexture);
+    var art = new THREE.Mesh(new THREE.PlaneGeometry(artW,artH), new THREE.MeshStandardMaterial({map:artTex, roughness:0.85}));
+    art.position.set(0, (borderH-artH)*0.06, 0.01);
+    group.add(art);
+    var rodMat = new THREE.MeshStandardMaterial({color:0x241708, roughness:0.55});
+    var rod = new THREE.Mesh(new THREE.CylinderGeometry(0.026,0.026,borderW+0.04,8), rodMat);
+    rod.rotation.z = Math.PI/2; rod.position.set(0, borderH/2+0.03, 0.02); group.add(rod);
+    var roller = new THREE.Mesh(new THREE.CylinderGeometry(0.038,0.038,borderW+0.04,10), rodMat);
+    roller.rotation.z = Math.PI/2; roller.position.set(0, -borderH/2-0.03, 0.03); group.add(roller);
+    var label = new THREE.Mesh(new THREE.PlaneGeometry(0.32,0.15), new THREE.MeshBasicMaterial({map:labelTexture(seed)}));
+    label.position.set(0, -borderH/2-0.22, 0.01); group.add(label);
+
+    var light = new THREE.SpotLight(0xfff0d2, 2.6, 7.5, Math.PI/7.5, 0.55, 1.6);
+    light.position.set(0, EYE_H-0.05, 1.05); light.target = art;
+    group.add(light); group.add(light.target);
+    addTrackFixture(group);
+
+    group.position.set(x, EYE_H+0.02, z);
+    group.rotation.y = ry;
+    scene.add(group);
+    var r = Math.max(1.3, Math.max(borderW,borderH)*1.1);
+    frames.push({group:group, x:x, z:z, seed:seed, r:r, imageUrl:ARTWORK_IMAGE_URLS[seed]||null, canvasImg:artTex.image||null});
+  }
+
+  // -- folding screen (byōbu): several hinged panels sharing one image --
+  function addByobuScreen(x,z,ry,seed,totalW,totalH,panelsCount){
+    panelsCount = panelsCount || 6;
+    totalW = totalW || 0.58*panelsCount;
+    totalH = totalH || 1.85;
+    var group = new THREE.Group();
+    var panelW = totalW/panelsCount, panelH = totalH;
+    var tex = artTextureFor(seed, byobuTexture);
+    for(var i=0;i<panelsCount;i++){
+      var px = -totalW/2 + panelW*(i+0.5);
+      var foldAngle = (i%2===0 ? 5 : -5) * Math.PI/180;
+      var t2 = tex.clone(); t2.needsUpdate = true;
+      t2.repeat.set(1/panelsCount,1); t2.offset.set(i/panelsCount,0);
+      var mat = new THREE.MeshStandardMaterial({map:t2, roughness:0.45, metalness:0.25});
+      var panel = new THREE.Mesh(new THREE.PlaneGeometry(panelW,panelH), mat);
+      panel.position.set(px,0,0);
+      panel.rotation.y = foldAngle;
+      panel.castShadow = true; panel.receiveShadow = true;
+      group.add(panel);
+    }
+    var label = new THREE.Mesh(new THREE.PlaneGeometry(0.36,0.16), new THREE.MeshBasicMaterial({map:labelTexture(seed)}));
+    label.position.set(0, -panelH/2-0.24, totalW/2-0.3); group.add(label);
+
+    var lightL = new THREE.SpotLight(0xfff0d2, 2.2, 8.5+totalW*0.3, Math.PI/6, 0.6, 1.5);
+    lightL.position.set(-totalW/4, EYE_H-0.05, 1.15); lightL.target = group; group.add(lightL);
+    var lightR = new THREE.SpotLight(0xfff0d2, 2.2, 8.5+totalW*0.3, Math.PI/6, 0.6, 1.5);
+    lightR.position.set(totalW/4, EYE_H-0.05, 1.15); lightR.target = group; group.add(lightR);
+    addTrackFixture(group);
+
+    // real folding screens stand on the floor (small riser), not floating
+    // at wall-hung height, so their true scale actually reads correctly
+    var riser = 0.04;
+    group.position.set(x, riser+panelH/2, z);
+    group.rotation.y = ry;
+    scene.add(group);
+    frames.push({group:group, x:x, z:z, seed:seed, r:totalW/2+1.2, big:true, imageUrl:ARTWORK_IMAGE_URLS[seed]||null, canvasImg:tex.image||null});
+  }
+
+  function addBench(x,z,ry){
+    var group = new THREE.Group();
+    var seat = new THREE.Mesh(new THREE.BoxGeometry(1.6,0.42,0.55), new THREE.MeshStandardMaterial({color:0x1c1a17, roughness:0.6}));
+    seat.position.y = 0.42; seat.castShadow = true; seat.receiveShadow = true; group.add(seat);
+    var legMat = new THREE.MeshStandardMaterial({color:0x2b2b2b, metalness:0.6, roughness:0.4});
+    [[-0.65,-0.2],[0.65,-0.2],[-0.65,0.2],[0.65,0.2]].forEach(function(p){
+      var leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.4,8), legMat);
+      leg.position.set(p[0],0.2,p[1]); leg.castShadow = true; group.add(leg);
+    });
+    group.position.set(x,0,z); group.rotation.y = ry;
+    scene.add(group);
+  }
+
+  function addVitrine(x,z){
+    var base = new THREE.Mesh(new THREE.BoxGeometry(0.78,0.72,0.78), new THREE.MeshStandardMaterial({color:0x14120f, roughness:0.5}));
+    base.position.set(x,0.36,z); base.castShadow = true; base.receiveShadow = true; scene.add(base);
+    var glass = new THREE.Mesh(new THREE.BoxGeometry(0.66,0.56,0.66), new THREE.MeshStandardMaterial({color:0xbfd8e0, transparent:true, opacity:0.14, roughness:0.1}));
+    glass.position.set(x,0.72+0.28,z); scene.add(glass);
+    var item = new THREE.Mesh(new THREE.SphereGeometry(0.11,12,12), new THREE.MeshStandardMaterial({color:0x8a6a3c, roughness:0.4, metalness:0.5}));
+    item.position.set(x,0.72+0.14,z); item.castShadow = true; scene.add(item);
+  }
+
+  // Real-world sizes (converted cm → m) for each documented piece, so a
+  // small print and a monumental folding screen read at true relative
+  // scale as you walk past them. Sources: Met/TNM/Wikipedia object records.
+
+  // west arm — Hokusai, Thirty-six Views of Mount Fuji (all ōban yoko-e, ~25.7 x 37.9cm)
+  addHangingScroll(OUTER.x0+0.05, -10.5, Math.PI/2, 0, 0.379, 0.257); // Fine Wind, Clear Morning
+  addHangingScroll(OUTER.x0+0.05, -6.5,  Math.PI/2, 1, 0.379, 0.257); // Kajikazawa in Kai Province
+  addHangingScroll(OUTER.x0+0.05, -2.5,  Math.PI/2, 2, 0.379, 0.257); // Ejiri in Suruga Province
+  addHangingScroll(OUTER.x0+0.05, 2.5,   Math.PI/2, 3, 0.379, 0.257); // Pilgrims at Kirifuri Waterfall
+
+  // east arm — Hiroshige, mixed ōban tate-e (~35.5 x 24.5cm) and yoko-e (~25.7 x 37.9cm)
+  addHangingScroll(OUTER.x1-0.05, -10.5, -Math.PI/2, 4, 0.245, 0.355); // Sudden Shower over Shin-Ōhashi (vertical)
+  addHangingScroll(OUTER.x1-0.05, -6.5,  -Math.PI/2, 5, 0.379, 0.257); // Evening Snow at Kambara (horizontal)
+  addHangingScroll(OUTER.x1-0.05, -2.5,  -Math.PI/2, 6, 0.245, 0.355); // Plum Garden, Kameido (vertical)
+  addHangingScroll(OUTER.x1-0.05, 2.5,   -Math.PI/2, 7, 0.379, 0.257); // Shōno (horizontal)
+
+  // central-hall faces — three real, documented folding screens at true scale
+  addByobuScreen(CORE.x0-0.05, 0, -Math.PI/2, 8,  1.698, 1.545, 2); // Wind God and Thunder God (Sōtatsu) 169.8×154.5cm
+  addByobuScreen(CORE.x1+0.05, 0,  Math.PI/2, 9,  3.715, 1.791, 6); // Irises at Yatsuhashi (Kōrin) 371.5×179.1cm
+  addByobuScreen(0, CORE.z0-0.05,  Math.PI,   10, 4.605, 1.703, 8); // Cypress Trees (Eitoku) 460.5×170.3cm
+  addHangingScroll(0, CORE.z1+0.05, 0, 11, 0.245, 0.355); // Ōtani Oniji (Sharaku, ōban tate-e)
+
+  // exhibition bay — the feature piece is deliberately shown enlarged
+  // (see its caption); the flanking scrolls are at true ōban/MET scale
+  addByobuScreen(0, BAY.z1-0.05, Math.PI, 12, 4.2, 1.9, 6);            // The Great Wave — enlarged feature reproduction
+  addHangingScroll(BAY.x0+0.05, (BAY.z0+BAY.z1)/2, Math.PI/2, 13, 0.25, 0.38);  // Three Beauties of the Present Day (Utamaro)
+  addHangingScroll(BAY.x1-0.05, (BAY.z0+BAY.z1)/2, -Math.PI/2, 14, 0.416, 0.978); // Quail and Autumn Flowers (Mitsuoki) — true MET size
+
+  // benches + a vitrine, echoing the reference photographs
+  addBench(-2.2, -9.5, Math.PI/2);
+  addBench(2.2, 9.5, Math.PI/2);
+  addVitrine(-6.7, -10.5);
+  addVitrine(6.7, 10.5);
+
+  resize();
+
+  /* ============================================================
+     View state
+  ============================================================ */
+  var firstPerson = false;
+  var yaw = Math.PI;     // facing +Z (into the hall) from the entrance
+  var pitch = 0;
+  var pos = new THREE.Vector3(0, EYE_H, OUTER.z0+2.6);
+
+  var overviewAngle = 0;
+  var clock = new THREE.Clock();
+
+  var keys = {};
+  window.addEventListener('keydown', function(e){
+    keys[e.key.toLowerCase()] = true;
+    if(['arrowup','arrowdown','arrowleft','arrowright',' '].indexOf(e.key.toLowerCase())>-1) e.preventDefault();
+  });
+  window.addEventListener('keyup', function(e){ keys[e.key.toLowerCase()] = false; });
+
+  /* ---- Mouse look: cursor position drives view, no click/drag needed ----
+     Moving the cursor across the viewport steadily turns the camera; the
+     closer the cursor sits to an edge, the faster it turns, so holding it
+     at the edge keeps rotating all the way around. A small dead-zone near
+     the centre keeps the view still while reading a caption. Touch
+     devices keep a simple swipe-to-look drag instead. */
+  var mouseNormX = 0, mouseNormY = 0;
+  window.addEventListener('mousemove', function(e){
+    if(!firstPerson) return;
+    var r = canvas.getBoundingClientRect();
+    var nx = ((e.clientX - r.left) / r.width) * 2 - 1;
+    var ny = ((e.clientY - r.top) / r.height) * 2 - 1;
+    mouseNormX = Math.max(-1, Math.min(1, nx));
+    mouseNormY = Math.max(-1, Math.min(1, ny));
+  });
+  window.addEventListener('mouseleave', function(){ mouseNormX = 0; mouseNormY = 0; });
+
+  var LOOK_DEADZONE = 0.12;
+  var LOOK_SPEED_YAW = 0.85;
+  var LOOK_SPEED_PITCH = 0.55;
+  function applyMouseLook(dt){
+    if(modalOpen) return;
+    var dx = mouseNormX, dy = mouseNormY;
+    var ax = Math.abs(dx) < LOOK_DEADZONE ? 0 : (Math.abs(dx)-LOOK_DEADZONE)/(1-LOOK_DEADZONE) * Math.sign(dx);
+    var ay = Math.abs(dy) < LOOK_DEADZONE ? 0 : (Math.abs(dy)-LOOK_DEADZONE)/(1-LOOK_DEADZONE) * Math.sign(dy);
+    yaw -= ax * LOOK_SPEED_YAW * dt;
+    pitch -= ay * LOOK_SPEED_PITCH * dt;
+    pitch = Math.max(-1.1, Math.min(1.1, pitch));
+  }
+
+  var dragging = false, lastX=0, lastY=0, touchStartX=0, touchStartY=0, touchMoved=0;
+  canvas.addEventListener('touchstart', function(e){
+    if(!firstPerson) return;
+    var t=e.touches[0];
+    dragging=true; lastX=t.clientX; lastY=t.clientY;
+    touchStartX=t.clientX; touchStartY=t.clientY; touchMoved=0;
+    canvas.classList.add('dragging');
+  }, {passive:true});
+  canvas.addEventListener('touchmove', function(e){
+    if(!dragging) return;
+    var t=e.touches[0];
+    var dx = t.clientX-lastX, dy = t.clientY-lastY; lastX=t.clientX; lastY=t.clientY;
+    touchMoved += Math.abs(dx)+Math.abs(dy);
+    yaw -= dx * 0.0035;
+    pitch -= dy * 0.0035;
+    pitch = Math.max(-1.1, Math.min(1.1, pitch));
+  }, {passive:true});
+  canvas.addEventListener('touchend', function(e){
+    dragging=false; canvas.classList.remove('dragging');
+    // a genuine tap (barely any finger movement) on a focused piece opens
+    // it — this stops the end of a look-around swipe from also selecting
+    if(firstPerson && !modalOpen && focusedFrame && touchMoved < 10){
+      e.preventDefault();
+      openArtworkModal(focusedFrame);
+    }
+  });
+
+  canvas.addEventListener('click', function(){
+    if(firstPerson && !modalOpen && focusedFrame){ openArtworkModal(focusedFrame); }
+  });
+
+  var padState = {forward:false, back:false, left:false, right:false};
+  document.querySelectorAll('#dpad button[data-dir]').forEach(function(btn){
+    var dir = btn.getAttribute('data-dir');
+    function on(e){ e.preventDefault(); padState[dir]=true; }
+    function off(){ padState[dir]=false; }
+    btn.addEventListener('mousedown', on); btn.addEventListener('touchstart', on, {passive:false});
+    ['mouseup','mouseleave','touchend','touchcancel'].forEach(function(ev){ btn.addEventListener(ev, off); });
+  });
+
+  /* ============================================================
+     UI wiring
+  ============================================================ */
+  var toggle = document.getElementById('fp-toggle');
+  var stateLabel = document.getElementById('state-label');
+  var statusDesc = document.getElementById('status-desc');
+  var guideList = document.getElementById('guide-list');
+  var hints = document.getElementById('hints');
+  var dpadEl = document.getElementById('dpad');
+  var minimapEl = document.getElementById('minimap');
+  var modeBanner = document.getElementById('mode-banner');
+  var captionEl = document.getElementById('caption');
+  var locationNow = document.getElementById('location-now');
+  var locationSub = document.getElementById('location-sub');
+  var reticleEl = document.getElementById('reticle');
+  var lookHintEl = document.getElementById('look-hint');
+  var modalEl = document.getElementById('artwork-modal');
+  var modalImg = document.getElementById('modal-img');
+  var modalTitle = document.getElementById('modal-title');
+  var modalArtist = document.getElementById('modal-artist');
+  var modalEra = document.getElementById('modal-era');
+  var modalTechnique = document.getElementById('modal-technique');
+  var modalOpen = false;
+  var focusedFrame = null;
+
+  function openArtworkModal(f){
+    modalOpen = true;
+    modalEl.classList.add('show');
+    var info = ARTWORK_INFO[f.seed] || {};
+    modalTitle.textContent = '作品 ' + String(f.seed+1).padStart(2,'0') + (info.title ? ' ー ' + info.title : '');
+    modalArtist.textContent = info.artist || 'ー(未設定)';
+    modalEra.textContent = info.era || 'ー(未設定)';
+    modalTechnique.textContent = info.technique || 'ー(未設定)';
+    if(f.imageUrl){ modalImg.src = f.imageUrl; }
+    else if(f.canvasImg && f.canvasImg.toDataURL){ modalImg.src = f.canvasImg.toDataURL(); }
+    else { modalImg.removeAttribute('src'); }
+  }
+  function closeArtworkModal(){ modalOpen = false; modalEl.classList.remove('show'); }
+  document.getElementById('modal-close').addEventListener('click', closeArtworkModal);
+  modalEl.addEventListener('click', function(e){ if(e.target === modalEl) closeArtworkModal(); });
+  window.addEventListener('keydown', function(e){ if(e.key === 'Escape' && modalOpen) closeArtworkModal(); });
+
+  function setFirstPerson(on){
+    firstPerson = on;
+    toggle.setAttribute('aria-checked', on ? 'true' : 'false');
+    stateLabel.textContent = on ? 'ON ー 館内を歩行中' : 'OFF ー 全体を見渡す';
+    stateLabel.classList.toggle('on', on);
+    statusDesc.style.display = on ? 'none' : 'block';
+    guideList.classList.toggle('show', on);
+    hints.classList.toggle('show', on);
+    dpadEl.classList.toggle('show', on);
+    minimapEl.classList.toggle('show', on);
+    modeBanner.classList.toggle('show', !on);
+    reticleEl.classList.toggle('show', on);
+    if(!on){ closeArtworkModal(); }
+    locationSub.textContent = on ? 'マウスで視点、キーで移動できます' : 'サイドバーのスイッチをONにして歩き出してください';
+  }
+  toggle.addEventListener('click', function(){ setFirstPerson(toggle.getAttribute('aria-checked') !== 'true'); });
+  toggle.addEventListener('keydown', function(e){
+    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); setFirstPerson(toggle.getAttribute('aria-checked') !== 'true'); }
+  });
+
+  document.getElementById('fullscreen-btn').addEventListener('click', function(){
+    try{
+      if(!document.fullscreenElement){ document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); }
+      else { document.exitFullscreen && document.exitFullscreen(); }
+    }catch(err){ /* fullscreen not permitted in this context */ }
+  });
+
+  setFirstPerson(false);
+
+  /* ============================================================
+     Movement
+  ============================================================ */
+  function updateMovement(dt){
+    if(modalOpen) return;
+    var fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+    var rx =  Math.cos(yaw), rz = -Math.sin(yaw);
+
+    var mz = 0, mx = 0;
+    if(keys['w'] || keys['arrowup'] || padState.forward) mz += 1;
+    if(keys['s'] || keys['arrowdown'] || padState.back) mz -= 1;
+    if(keys['d'] || keys['arrowright'] || padState.right) mx += 1;
+    if(keys['a'] || keys['arrowleft'] || padState.left) mx -= 1;
+    if(mx !== 0 && mz !== 0){ mx *= 0.7071; mz *= 0.7071; }
+
+    var nx = pos.x + (fx*mz + rx*mx) * MOVE_SPEED * dt;
+    var nz = pos.z + (fz*mz + rz*mx) * MOVE_SPEED * dt;
+
+    if(withinBounds(nx, pos.z)) pos.x = nx;
+    if(withinBounds(pos.x, nz)) pos.z = nz;
+  }
+
+  /* ============================================================
+     Minimap — outer loop outline with the solid core block shown filled
+  ============================================================ */
+  var mmCanvas = document.getElementById('minimap-canvas');
+  var mmCtx = mmCanvas.getContext('2d');
+  var MM_X0 = OUTER.x0, MM_X1 = OUTER.x1, MM_Z0 = OUTER.z0, MM_Z1 = BAY.z1;
+  function mapPt(x,z,W,H,pad){
+    return [ pad + (x-MM_X0)/(MM_X1-MM_X0) * (W-pad*2), pad + (z-MM_Z0)/(MM_Z1-MM_Z0) * (H-pad*2) ];
+  }
+  function drawMinimap(){
+    var W = mmCanvas.width, H = mmCanvas.height, pad = 8;
+    mmCtx.clearRect(0,0,W,H);
+    mmCtx.fillStyle = 'rgba(184,149,92,0.05)'; mmCtx.fillRect(0,0,W,H);
+    mmCtx.strokeStyle = 'rgba(184,149,92,0.55)'; mmCtx.lineWidth = 1;
+    var o0 = mapPt(OUTER.x0,OUTER.z0,W,H,pad), o1 = mapPt(OUTER.x1,OUTER.z1,W,H,pad);
+    mmCtx.strokeRect(o0[0],o0[1], o1[0]-o0[0], o1[1]-o0[1]);
+    var b0 = mapPt(BAY.x0,BAY.z0,W,H,pad), b1 = mapPt(BAY.x1,BAY.z1,W,H,pad);
+    mmCtx.strokeRect(b0[0],b0[1], b1[0]-b0[0], b1[1]-b0[1]);
+    var c0 = mapPt(CORE.x0,CORE.z0,W,H,pad), c1 = mapPt(CORE.x1,CORE.z1,W,H,pad);
+    mmCtx.fillStyle = 'rgba(184,149,92,0.22)';
+    mmCtx.fillRect(c0[0],c0[1], c1[0]-c0[0], c1[1]-c0[1]);
+
+    mmCtx.fillStyle = 'rgba(224,192,132,0.55)';
+    frames.forEach(function(f){ var p = mapPt(f.x,f.z,W,H,pad); mmCtx.fillRect(p[0]-1.5,p[1]-1.5,3,3); });
+
+    var pp = mapPt(pos.x,pos.z,W,H,pad);
+    var fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+    mmCtx.strokeStyle = 'rgba(224,192,132,0.9)';
+    mmCtx.beginPath(); mmCtx.moveTo(pp[0],pp[1]); mmCtx.lineTo(pp[0]+fx*11,pp[1]+fz*11); mmCtx.stroke();
+    mmCtx.fillStyle = '#e0c084';
+    mmCtx.beginPath(); mmCtx.arc(pp[0],pp[1],3.2,0,Math.PI*2); mmCtx.fill();
+  }
+
+  /* ============================================================
+     Location label + caption
+  ============================================================ */
+  function updateLocation(){
+    var label, sub;
+    if(pos.z > BAY.z0+0.2){ label='特別展示室'; sub='大型の屏風作品を中心に展示'; }
+    else if(pos.x < CORE.x0-0.3){ label='回廊(西翼)'; sub='常設コレクションを展示中'; }
+    else if(pos.x > CORE.x1+0.3){ label='回廊(東翼)'; sub='常設コレクションを展示中'; }
+    else if(pos.z < CORE.z0-0.3){ label='エントランス'; sub='回廊を時計回りに進めます'; }
+    else { label='回廊(北翼)'; sub='この先に特別展示室があります'; }
+    locationNow.textContent = label;
+    if(firstPerson) locationSub.textContent = sub;
+
+    var nearest = null, best = 999;
+    frames.forEach(function(f){
+      var d = Math.hypot(f.x-pos.x, f.z-pos.z);
+      if(d < best){ best = d; nearest = f; }
+    });
+    if(firstPerson && nearest && best < nearest.r){
+      captionEl.classList.add('show');
+      captionEl.querySelector('.num').textContent = '作品 ' + String(nearest.seed+1).padStart(2,'0');
+      captionEl.querySelector('.cap').textContent = '近づいて鑑賞中 ー クリック/タップで拡大表示';
+    } else {
+      captionEl.classList.remove('show');
+    }
+
+    // "selectable" target: within reach AND close to the centre of view —
+    // the same two conditions the prompt asked for (distance + aim)
+    focusedFrame = null;
+    if(firstPerson && !modalOpen){
+      var fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+      var bestDot = 0.93; // ~21° cone around the centre of the screen
+      frames.forEach(function(f){
+        var dx = f.x-pos.x, dz = f.z-pos.z;
+        var d = Math.hypot(dx,dz);
+        if(d > f.r*1.6) return;
+        var dot = (fx*dx + fz*dz) / (d || 1);
+        if(dot > bestDot){ bestDot = dot; focusedFrame = f; }
+      });
+    }
+    reticleEl.classList.toggle('target', !!focusedFrame);
+    lookHintEl.classList.toggle('show', !!focusedFrame);
+  }
+
+  /* ============================================================
+     Render loop
+  ============================================================ */
+  function animate(){
+    requestAnimationFrame(animate);
+    var dt = Math.min(clock.getDelta(), 0.05);
+
+    if(firstPerson){
+      applyMouseLook(dt);
+      updateMovement(dt);
+      camera.position.set(pos.x, EYE_H, pos.z);
+      camera.rotation.y = yaw;
+      camera.rotation.x = pitch;
+      camera.rotation.z = 0;
+      drawMinimap();
+    } else {
+      overviewAngle += dt * 0.07;
+      var r = 14;
+      camera.position.set(Math.sin(overviewAngle)*r, 9, Math.cos(overviewAngle)*r*0.75 + 1);
+      camera.lookAt(0, 1.4, 1);
+    }
+    updateLocation();
+    renderer.render(scene, camera);
+  }
+  animate();
+})();
+</script>
+</body>
+</html>
