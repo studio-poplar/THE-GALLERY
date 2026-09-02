@@ -63,7 +63,7 @@
 ---
 ## 5. コンポーネント仕様
 ### 5.1 ヘッダー(`header`)
-`#modeBtn`(表示モード切替)・`#pauseBtn`(一時停止)・`#menuBtn`(フィルター開閉ハンバーガー)の3ボタン。**BGMミュートボタン(`#muteBtn`)は撤去済み**。
+`#modeBtn`(表示モード切替)・`#pauseBtn`(一時停止)・`#menuBtn`(フィルター開閉ハンバーガー)の3ボタンに加え、**「AR/VRで見る(β)」リンクを追加**(2026-09-02。`.hero-btn`と同じ見た目の`<a>`要素、`prototypes/virtual-museum-vr-mockup.html`を別タブで開く。10章参照)。**BGMミュートボタン(`#muteBtn`)は撤去済み**。
 ホバー可能なデバイスでは、ヘッダーはデフォルト非表示(`opacity:0`)で、ホバー時のみ表示される。表示モードを「CAPTIONS OFF」に切り替えた瞬間はカーソルが乗ったままでも強制的に隠す(`.force-hidden`クラス、mouseleaveで解除)。タッチ端末では常時表示。
 ### 5.2 ヒーロー・スライドショー(`.hero`)
 - データはフィルター結果(`currentWorks`)を`renderHero()`で毎回作り直す
