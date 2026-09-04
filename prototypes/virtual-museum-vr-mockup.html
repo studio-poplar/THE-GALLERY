@@ -1205,10 +1205,14 @@
       camera.rotation.z = 0;
       drawMinimap();
     } else {
+      // 中央の壁(CORE: x±4, z±6.5)の対角線距離は約7.63m。半径8mの正円軌道なら
+      // どの角度でも中央の壁の中に入り込まないことを計算済み(前回の楕円軌道は
+      // 一部の角度でCOREの中を通ってしまい、壁のグラデーションが画面いっぱいに
+      // 映る不具合の原因だった)。
       overviewAngle += dt * 0.07;
-      var r = 10;
-      camera.position.set(Math.sin(overviewAngle)*r, 3.1, Math.cos(overviewAngle)*r*0.75 + 1);
-      camera.lookAt(0, 1.3, 1);
+      var r = 8;
+      camera.position.set(Math.sin(overviewAngle)*r, 3.4, Math.cos(overviewAngle)*r);
+      camera.lookAt(0, 1.3, 0);
     }
     updateLocation();
     renderer.render(scene, camera);
