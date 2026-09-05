@@ -400,22 +400,29 @@
      placeholder. Also fill in the matching caption fields below
      so the modal shows real information instead of "ー(未設定)".
   ============================================================ */
+  /* commons.wikimedia.org/wiki/Special:FilePath/... へのリクエストはリダイレクト
+     応答自体にCORSヘッダーが付かず、WebGLテクスチャとして読み込むと(画像は404等
+     ではなく正常に取得できるにもかかわらず)ブラウザ側でブロックされ、代替の
+     ぼやけたプレースホルダー柄が描画される不具合があった(=繰り返し報告された
+     「画面が灰色っぽい/斜めの帯」の正体)。リダイレクト先の実URL(thumb/upload.
+     wikimedia.org)は正しくCORSに対応していることを実機検証済みのため、
+     各作品ともSpecial:FilePathではなくリダイレクト解決後の直リンクを使用する。 */
   var ARTWORK_IMAGE_URLS = {
-    0:  'https://commons.wikimedia.org/wiki/Special:FilePath/Katsushika%20Hokusai%20-%20Fine%20Wind%2C%20Clear%20Morning%20(Gaif%C5%AB%20kaisei)%20-%20Google%20Art%20Project.jpg?width=1600',
-    1:  'https://commons.wikimedia.org/wiki/Special:FilePath/%E5%86%A8%E5%B6%BD%E4%B8%89%E5%8D%81%E5%85%AD%E6%99%AF%20%E7%94%B2%E5%B7%9E%E7%9F%B3%E7%8F%AD%E6%B2%A2-Kajikazawa%20in%20Kai%20Province%20(K%C5%8Dsh%C5%AB%20Kajikazawa)%2C%20from%20the%20series%20Thirty-six%20Views%20of%20Mount%20Fuji%20(Fugaku%20sanj%C5%ABrokkei)%20MET%20DP141085.jpg?width=1600',
-    2:  'https://commons.wikimedia.org/wiki/Special:FilePath/%E5%86%A8%E5%B6%BD%E4%B8%89%E5%8D%81%E5%85%AD%E6%99%AF%20%E9%A7%BF%E5%B7%9E%E6%B1%9F%E5%B0%BB-Ejiri%20in%20Suruga%20Province%20(Sunsh%C5%AB%20Ejiri)%2C%20from%20the%20series%20Thirty-six%20Views%20of%20Mount%20Fuji%20(Fugaku%20sanj%C5%ABrokkei)%20MET%20DP141046.jpg?width=1600',
-    3:  'https://commons.wikimedia.org/wiki/Special:FilePath/Katsushika%20Hokusai%2C%20Japanese%20-%20Pilgrims%20at%20Kirifuri%20Waterfall%20on%20Mount%20Kurokami%20in%20Shimotsuke%20Province%20-%20Google%20Art%20Project.jpg?width=1600',
-    4:  'https://commons.wikimedia.org/wiki/Special:FilePath/%C5%8Chashi%20Atake%20no%20y%C5%ABdachi-%E5%90%8D%E6%89%80%E6%B1%9F%E6%88%B8%E7%99%BE%E6%99%AF%20%E5%A4%A7%E3%81%AF%E3%81%97%E3%81%82%E3%81%9F%E3%81%91%E3%81%AE%E5%A4%95%E7%AB%8B-Sudden%20Shower%20over%20Shin-%C5%8Chashi%20Bridge%20and%20Atake%20(%C5%8Chashi%20Atake%20no%20y%C5%ABdachi)%2C%20from%20the%20series%20One%20Hundred%20Famous%20Views%20of%20Edo%20(Meisho%20Edo%20hyakkei)%20MET%20DP123602.jpg?width=1600',
-    5:  'https://commons.wikimedia.org/wiki/Special:FilePath/Evening%20Snow%20at%20Kambara%20LACMA%20M.49.5.1.jpg?width=1600',
-    6:  'https://commons.wikimedia.org/wiki/Special:FilePath/Ando%20Hiroshige%20-%20Plum%20Garden%2C%20Kameido%20-%20Google%20Art%20Project.jpg?width=1600',
-    7:  'https://commons.wikimedia.org/wiki/Special:FilePath/Utagawa%20Hiroshige%20(the%20first)%20-%20Shono%20from%20the%20Fifty-three%20Stations%20on%20Tokaido%20Highway%2C%20Hoeido%20version%20-%20Google%20Art%20Project.jpg?width=1600',
-    8:  'https://commons.wikimedia.org/wiki/Special:FilePath/Wind%20God%20and%20Thunder%20God%20Screens%20by%20Tawaraya%20Sotatsu%20hi-res.png?width=1600',
-    9:  'https://commons.wikimedia.org/wiki/Special:FilePath/%E5%85%AB%E6%A9%8B%E5%9B%B3%E5%B1%8F%E9%A2%A8%20-Irises%20at%20Yatsuhashi%20(Eight%20Bridges)%20MET%20DP153048.jpg?width=1600',
-    10: 'https://commons.wikimedia.org/wiki/Special:FilePath/Kano%20Eitoku%20-%20Cypress%20Trees.jpg?width=1600',
-    11: 'https://commons.wikimedia.org/wiki/Special:FilePath/Toshusai%20Sharaku-%20Otani%20Oniji%2C%201794.jpg?width=1600',
-    12: 'https://commons.wikimedia.org/wiki/Special:FilePath/The%20Great%20Wave%20off%20Kanagawa.jpg?width=1600',
-    13: 'https://commons.wikimedia.org/wiki/Special:FilePath/Kitagawa%20Utamaro%20-%20Toji%20san%20bijin%20(Three%20Beauties%20of%20the%20Present%20Day)From%20Bijin-ga%20(Pictures%20of%20Beautiful%20Women)%2C%20published%20by%20Tsutaya%20Juzaburo%20-%20Google%20Art%20Project.jpg?width=1600',
-    14: 'https://commons.wikimedia.org/wiki/Special:FilePath/Tosa%20Mitsuoki%20-%20Quail%20and%20Autumn%20Flowers%20-%2036.100.52%20-%20Metropolitan%20Museum%20of%20Art.jpg?width=1600',
+    0:  'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/25/Katsushika_Hokusai_-_Fine_Wind%2C_Clear_Morning_%28Gaif%C5%AB_kaisei%29_-_Google_Art_Project.jpg/1920px-Katsushika_Hokusai_-_Fine_Wind%2C_Clear_Morning_%28Gaif%C5%AB_kaisei%29_-_Google_Art_Project.jpg',
+    1:  'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/%E5%86%A8%E5%B6%BD%E4%B8%89%E5%8D%81%E5%85%AD%E6%99%AF_%E7%94%B2%E5%B7%9E%E7%9F%B3%E7%8F%AD%E6%B2%A2-Kajikazawa_in_Kai_Province_%28K%C5%8Dsh%C5%AB_Kajikazawa%29%2C_from_the_series_Thirty-six_Views_of_Mount_Fuji_%28Fugaku_sanj%C5%ABrokkei%29_MET_DP141085.jpg/1920px-thumbnail.jpg',
+    2:  'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b2/%E5%86%A8%E5%B6%BD%E4%B8%89%E5%8D%81%E5%85%AD%E6%99%AF_%E9%A7%BF%E5%B7%9E%E6%B1%9F%E5%B0%BB-Ejiri_in_Suruga_Province_%28Sunsh%C5%AB_Ejiri%29%2C_from_the_series_Thirty-six_Views_of_Mount_Fuji_%28Fugaku_sanj%C5%ABrokkei%29_MET_DP141046.jpg/1920px-%E5%86%A8%E5%B6%BD%E4%B8%89%E5%8D%81%E5%85%AD%E6%99%AF_%E9%A7%BF%E5%B7%9E%E6%B1%9F%E5%B0%BB-Ejiri_in_Suruga_Province_%28Sunsh%C5%AB_Ejiri%29%2C_from_the_series_Thirty-six_Views_of_Mount_Fuji_%28Fugaku_sanj%C5%ABrokkei%29_MET_DP141046.jpg',
+    3:  'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/60/Katsushika_Hokusai%2C_Japanese_-_Pilgrims_at_Kirifuri_Waterfall_on_Mount_Kurokami_in_Shimotsuke_Province_-_Google_Art_Project.jpg/1920px-Katsushika_Hokusai%2C_Japanese_-_Pilgrims_at_Kirifuri_Waterfall_on_Mount_Kurokami_in_Shimotsuke_Province_-_Google_Art_Project.jpg',
+    4:  'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/%C5%8Chashi_Atake_no_y%C5%ABdachi-%E5%90%8D%E6%89%80%E6%B1%9F%E6%88%B8%E7%99%BE%E6%99%AF_%E5%A4%A7%E3%81%AF%E3%81%97%E3%81%82%E3%81%9F%E3%81%91%E3%81%AE%E5%A4%95%E7%AB%8B-Sudden_Shower_over_Shin-%C5%8Chashi_Bridge_and_Atake_%28%C5%8Chashi_Atake_no_y%C5%ABdachi%29%2C_from_the_series_One_Hundred_Famous_Views_of_Edo_%28Meisho_Edo_hyakkei%29_MET_DP123602.jpg/1920px-thumbnail.jpg',
+    5:  'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/Evening_Snow_at_Kambara_LACMA_M.49.5.1.jpg/1920px-Evening_Snow_at_Kambara_LACMA_M.49.5.1.jpg',
+    6:  'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/19/Ando_Hiroshige_-_Plum_Garden%2C_Kameido_-_Google_Art_Project.jpg/1920px-Ando_Hiroshige_-_Plum_Garden%2C_Kameido_-_Google_Art_Project.jpg',
+    7:  'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Utagawa_Hiroshige_%28the_first%29_-_Shono_from_the_Fifty-three_Stations_on_Tokaido_Highway%2C_Hoeido_version_-_Google_Art_Project.jpg/1920px-Utagawa_Hiroshige_%28the_first%29_-_Shono_from_the_Fifty-three_Stations_on_Tokaido_Highway%2C_Hoeido_version_-_Google_Art_Project.jpg',
+    8:  'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/37/Wind_God_and_Thunder_God_Screens_by_Tawaraya_Sotatsu_hi-res.png/1920px-Wind_God_and_Thunder_God_Screens_by_Tawaraya_Sotatsu_hi-res.png',
+    9:  'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/50/%E5%85%AB%E6%A9%8B%E5%9B%B3%E5%B1%8F%E9%A2%A8_-Irises_at_Yatsuhashi_%28Eight_Bridges%29_MET_DP153048.jpg/1920px-%E5%85%AB%E6%A9%8B%E5%9B%B3%E5%B1%8F%E9%A2%A8_-Irises_at_Yatsuhashi_%28Eight_Bridges%29_MET_DP153048.jpg',
+    10: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/Kano_Eitoku_-_Cypress_Trees.jpg/1920px-Kano_Eitoku_-_Cypress_Trees.jpg',
+    11: 'https://upload.wikimedia.org/wikipedia/commons/0/0e/Toshusai_Sharaku-_Otani_Oniji%2C_1794.jpg',
+    12: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/The_Great_Wave_off_Kanagawa.jpg/1920px-The_Great_Wave_off_Kanagawa.jpg',
+    13: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6b/Kitagawa_Utamaro_-_Toji_san_bijin_%28Three_Beauties_of_the_Present_Day%29From_Bijin-ga_%28Pictures_of_Beautiful_Women%29%2C_published_by_Tsutaya_Juzaburo_-_Google_Art_Project.jpg/1920px-thumbnail.jpg',
+    14: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/Tosa_Mitsuoki_-_Quail_and_Autumn_Flowers_-_36.100.52_-_Metropolitan_Museum_of_Art.jpg/1920px-Tosa_Mitsuoki_-_Quail_and_Autumn_Flowers_-_36.100.52_-_Metropolitan_Museum_of_Art.jpg',
   };
   /* 本番コレクション(../data/works.json)の実データを使用。年代・技法・解説文は
      いずれも同ファイルの year/medium/caption フィールドをそのまま転記している。 */
@@ -841,14 +848,21 @@
     totalH = totalH || 1.85;
     var group = new THREE.Group();
     var panelW = totalW/panelsCount, panelH = totalH;
+    // 各パネルは同じテクスチャをUVスライスして共有する(以前はtexture.clone()で
+    // パネルごとに複製していたが、実画像はTextureLoaderで非同期に読み込まれるため
+    // 複製した時点でimageが未設定のまま固定され、読み込み完了後も更新されず
+    // 真っ黒に表示される不具合があった。UVをずらすだけならこの問題が起きない)
     var tex = artTextureFor(seed, byobuTexture);
     for(var i=0;i<panelsCount;i++){
       var px = -totalW/2 + panelW*(i+0.5);
       var foldAngle = (i%2===0 ? 5 : -5) * Math.PI/180;
-      var t2 = tex.clone(); t2.needsUpdate = true;
-      t2.repeat.set(1/panelsCount,1); t2.offset.set(i/panelsCount,0);
-      var mat = new THREE.MeshStandardMaterial({map:t2, roughness:0.45, metalness:0.25});
-      var panel = new THREE.Mesh(new THREE.PlaneGeometry(panelW,panelH), mat);
+      var u0 = i/panelsCount, u1 = (i+1)/panelsCount;
+      var geo = new THREE.PlaneGeometry(panelW,panelH);
+      var uv = geo.attributes.uv;
+      uv.setXY(0,u0,1); uv.setXY(1,u1,1); uv.setXY(2,u0,0); uv.setXY(3,u1,0);
+      uv.needsUpdate = true;
+      var mat = new THREE.MeshStandardMaterial({map:tex, roughness:0.45, metalness:0.25});
+      var panel = new THREE.Mesh(geo, mat);
       panel.position.set(px,0,0);
       panel.rotation.y = foldAngle;
       panel.castShadow = true; panel.receiveShadow = true;
