@@ -27,7 +27,13 @@
 
   /* ---------- Viewport ---------- */
   #viewport{position:relative;flex:1;min-width:0;}
-  #canvas-3d{position:absolute;inset:0;display:block;cursor:default;touch-action:none;}
+  /* width/height:100% は明示必須 — canvasは「置換要素」なので、これがないと
+     inset:0だけでは効かず、幅/高さ属性(JSのrenderer.setSizeが最後に設定した
+     古い値)がそのまま表示サイズとして使われてしまう。ウィンドウのリサイズや
+     全画面切り替え時にJS側のresize()呼び出しが間に合わない/漏れると、canvasが
+     古いサイズのまま固定され、右側などに背後のサイドバーが透けて見える不具合の
+     原因になっていた。 */
+  #canvas-3d{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:default;touch-action:none;}
   #canvas-3d.dragging{cursor:grabbing;}
   #vignette{
     position:absolute;inset:0;pointer-events:none;
@@ -507,6 +513,10 @@
     camera.updateProjectionMatrix();
   }
   window.addEventListener('resize', resize);
+  // 全画面表示の切り替えは一部のブラウザ環境でwindowのresizeイベントが
+  // 発火しない/タイミングがずれることがあるため、fullscreenchangeでも
+  // 明示的に再計算する(描画解像度がぼやけたまま固定されるのを防ぐ)。
+  document.addEventListener('fullscreenchange', resize);
 
   /* ============================================================
      Procedural textures (no external images)
