@@ -381,10 +381,14 @@
   var EYE_H  = 1.62;
   var MOVE_SPEED = 3.4;
 
-  // collision bounds, inset from the physical walls so the camera never clips
-  var OUTER_W = {x0:OUTER.x0+0.35, x1:OUTER.x1-0.35, z0:OUTER.z0+0.35, z1:OUTER.z1-0.35};
+  // collision bounds, inset from the physical walls so the camera never clips.
+  // 展示壁側は1.1m(壁付近のスポットライト光源[EYE_H-0.05, z≈1.05]より内側に
+  // 入り込めない距離)まで広げてある。以前は0.35mしかなく、掛軸に顔を近づけると
+  // スポットライトの光源を追い越して至近距離から覗き込む形になり、光源の光が
+  // 画面いっぱいに広がって白飛びする不具合があった(録画で複数回再現確認済み)。
+  var OUTER_W = {x0:OUTER.x0+1.1, x1:OUTER.x1-1.1, z0:OUTER.z0+1.1, z1:OUTER.z1-1.1};
   var CORE_W  = {x0:CORE.x0-0.4,   x1:CORE.x1+0.4,   z0:CORE.z0-0.4,   z1:CORE.z1+0.4};
-  var BAY_W   = {x0:BAY.x0+0.35,   x1:BAY.x1-0.35,   z0:BAY.z0-0.15,   z1:BAY.z1-0.35};
+  var BAY_W   = {x0:BAY.x0+1.1,    x1:BAY.x1-1.1,    z0:BAY.z0-0.15,   z1:BAY.z1-1.1};
 
   function inRect(x,z,r){ return x>r.x0 && x<r.x1 && z>r.z0 && z<r.z1; }
   function withinBounds(x,z){
