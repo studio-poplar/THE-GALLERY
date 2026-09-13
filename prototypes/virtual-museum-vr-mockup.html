@@ -249,6 +249,11 @@
 
   /* mobile */
   @media (max-width: 760px){
+    /* iOS Safari は要素単位のFullscreen API(Element.requestFullscreen)に
+       長らく対応しておらず(iOS16.4以降でも埋め込み系ブラウザ等では動作しない
+       ことが多い)、押しても何も起きない状態になりやすい。押せるのに無反応な
+       ボタンを残すより、スマホ幅では最初からボタン自体を非表示にする。 */
+    #fullscreen-btn{display:none;}
     #app{flex-direction:column;}
     #sidebar{
       width:100%;order:2;border-left:none;border-top:1px solid var(--panel-border);
