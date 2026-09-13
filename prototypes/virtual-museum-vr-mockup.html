@@ -985,6 +985,13 @@
      devices keep a simple swipe-to-look drag instead. */
   var mouseNormX = 0, mouseNormY = 0;
   window.addEventListener('mousemove', function(e){
+    // スマホ/タッチ端末ではタップ時にブラウザが疑似的なmousemoveイベントを
+    // 発火させることがあり、それがタップ位置(画面端に近いことが多い)で
+    // mouseNormX/Yに値を残してしまう。タッチ端末には本物のマウスが動くことは
+    // ないため値がリセットされず、「端に近いほど回転し続ける」仕様のせいで
+    // 視点が勝手にぐるぐる回り続ける不具合の原因になっていた。タッチ端末では
+    // このマウス視点操作自体を無効化し、スワイプドラッグのみで視点操作させる。
+    if(isMobile) return;
     if(!firstPerson) return;
     var r = canvas.getBoundingClientRect();
     var nx = ((e.clientX - r.left) / r.width) * 2 - 1;
@@ -1227,7 +1234,7 @@
     var dt = Math.min(clock.getDelta(), 0.05);
 
     if(firstPerson){
-      applyMouseLook(dt);
+      if(!isMobile) applyMouseLook(dt);
       updateMovement(dt);
       camera.position.set(pos.x, EYE_H, pos.z);
       camera.rotation.y = yaw;
