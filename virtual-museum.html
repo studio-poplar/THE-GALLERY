@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>THE GALLERY — Virtual Museum Experience</title>
+<meta name="description" content="浮世絵を中心とした日本絵画の名品を、いつでもどこでも鑑賞できるオンラインギャラリー。スライドショーと作品一覧から、作者・年代・流派/技法で絞り込んで名画を楽しめます。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="THE GALLERY">
+<meta property="og:title" content="THE GALLERY — Virtual Museum Experience">
+<meta property="og:description" content="浮世絵を中心とした日本絵画の名品を、いつでもどこでも鑑賞できるオンラインギャラリー。">
+<meta property="og:image" content="https://commons.wikimedia.org/wiki/Special:FilePath/The%20Great%20Wave%20off%20Kanagawa.jpg?width=1200">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0b'/%3E%3Crect x='14' y='14' width='36' height='36' fill='none' stroke='%23d7b56a' stroke-width='3'/%3E%3Ccircle cx='24' cy='26' r='3.4' fill='%23d7b56a'/%3E%3Cpath d='M17 43 L28 32 L36 40 L47 29 L47 43 Z' fill='%23d7b56a'/%3E%3C/svg%3E">
 <style>
   :root{
     --ink:#f4efe4;
@@ -99,8 +107,6 @@
   .el-group{ position:absolute; z-index:6; color:var(--ink); } /* colorはCMSのcustom color指定でグループ単位に上書きできるよう明示的に設定 */
   .el-group .title, .el-group .sub, .el-group .caption, .el-group .specs{
     background-color:rgba(4,4,5,.68);
-    background-image:radial-gradient(rgba(244,239,228,.4) 1px, transparent 1.3px);
-    background-size:7px 7px;
     backdrop-filter:blur(6px);
     -webkit-backdrop-filter:blur(6px);
     padding:14px 18px;
@@ -300,10 +306,13 @@
   footer .credit{ margin-top:14px; }
   footer .copy{ margin-top:40px; color:rgba(244,239,228,.35); font-size:.7rem; letter-spacing:.05em; }
 
-  /* prefers-reduced-motion: Ken Burnsのズーム&パン、進捗バーの充填アニメーションを無効化 */
+  /* prefers-reduced-motion: Ken Burnsのズーム&パン、進捗バーの充填アニメーションに加え、
+     ヘッダーのホバーフェードとグリッドカードのスクロールイン演出も無効化する */
   @media (prefers-reduced-motion: reduce){
     .slide.active .bg{ animation:none; transform:scale(1.06); }
     .progress .bar.filling i{ animation:none; transform:scaleX(1); }
+    header{ transition:none; }
+    .card{ transition:none; opacity:1; transform:none; }
   }
 
   /* ============ モバイル調整(〜640px) ============ */
@@ -321,9 +330,24 @@
     .artist-portrait{ width:140px; height:180px; }
     .artist-portrait-note{ max-width:none; }
   }
+
+  /* ============ 初回読み込み中のオーバーレイ ============ */
+  /* data/*.json の取得が終わるまで無地の真っ暗画面になり、壊れているように
+     見えかねないための簡単なローディング表示。取得に失敗した場合はここに
+     エラーメッセージを出す(以前は失敗すると何も表示されず沈黙していた)。 */
+  #pageLoading{
+    position:fixed; inset:0; z-index:200; background:#0a0a0b;
+    display:flex; align-items:center; justify-content:center;
+    opacity:1; transition:opacity .4s ease;
+  }
+  #pageLoading.hide{ opacity:0; pointer-events:none; }
+  #pageLoading .msg{ font-size:.78rem; letter-spacing:.1em; color:var(--dim); text-align:center; padding:0 8%; line-height:1.8; }
+  #pageLoading.is-error .msg{ color:#e08a76; }
 </style>
 </head>
 <body>
+
+  <div id="pageLoading"><div class="msg" id="pageLoadingMsg">LOADING…</div></div>
 
   <header>
     <div class="logo serif"><span id="logoPrefix">THE</span> <span id="logoAccent" class="accent"></span></div>
@@ -449,12 +473,25 @@ let ARTISTS = [];
 let SITE = {};
 let HERO_LAYOUT = {};
 
+// data/*.jsonのどれか1つでも取得失敗・記法エラーで壊れていると、以前は
+// Promise.allごと静かに失敗してサイトが無言で真っ白になっていた。ここで
+// 明示的にres.okとJSONパースを確認し、失敗時はどのファイルが原因かわかる
+// メッセージを添えて例外を投げる(呼び出し元のinit()で捕捉して画面に表示)。
+async function fetchJSON(path){
+  let res;
+  try { res = await fetch(path); }
+  catch(e){ throw new Error(`${path} の取得に失敗しました(ネットワークエラー)`); }
+  if (!res.ok) throw new Error(`${path} の取得に失敗しました(HTTP ${res.status})`);
+  try { return await res.json(); }
+  catch(e){ throw new Error(`${path} の形式が正しくありません(JSON解析エラー)`); }
+}
+
 async function loadData(){
   const [works, artists, site, layout] = await Promise.all([
-    fetch('data/works.json').then(r => r.json()),
-    fetch('data/artists.json').then(r => r.json()),
-    fetch('data/site-settings.json').then(r => r.json()),
-    fetch('data/hero-layout.json').then(r => r.json()),
+    fetchJSON('data/works.json'),
+    fetchJSON('data/artists.json'),
+    fetchJSON('data/site-settings.json'),
+    fetchJSON('data/hero-layout.json'),
   ]);
   WORKS = works;
   ARTISTS = artists;
@@ -560,11 +597,25 @@ function scheduleNext(ms){
   slideTimer = setTimeout(() => goTo((current + 1) % currentWorks.length), ms);
 }
 
+// 表示中/これから表示するスライドの背景画像だけをその場で読み込む(遅延読み込み)。
+// 以前は全スライド分(最大2400px幅)を最初に一括で読み込んでおり、22作品分の
+// リクエストがページを開いた瞬間に同時発生して初回表示が重くなっていた。
+function ensureSlideBgLoaded(i){
+  const s = slideEls[i];
+  if (!s) return;
+  const bg = s.querySelector('.bg');
+  if (bg && !bg.style.backgroundImage && bg.dataset.src){
+    bg.style.backgroundImage = `url('${bg.dataset.src}')`;
+  }
+}
+
 function goTo(i){
   if (currentWorks.length === 0) return;
   if (slideEls[current]) slideEls[current].classList.remove('active');
   current = i;
   const s = slideEls[current];
+  ensureSlideBgLoaded(current);
+  ensureSlideBgLoaded((current + 1) % currentWorks.length); // 次のスライドを先読みして切り替え時の空白を防ぐ
   // Ken Burns/進捗バーをリスタートさせるため、一度アニメーションを解除してから再度付与する(引き継ぎ指示書4.2節の定石パターン)
   const bg = s.querySelector('.bg');
   bg.style.animation = 'none';
@@ -623,7 +674,7 @@ function renderHero(list){
     slide.className = 'slide';
     const schoolsLabel = w.schools.map(id => SCHOOLS.find(s => s.id === id)?.label || id);
     slide.innerHTML = `
-      <div class="bg" style="background-image:url('${imageUrl(w, 2400)}')"></div>
+      <div class="bg" data-src="${imageUrl(w, 2400)}"></div>
       <div class="el-group" style="${layoutStyle()}">
         <div class="title serif">${w.title}</div>
         <div class="sub">${w.artist} — ${w.year}</div>
@@ -693,6 +744,39 @@ const pauseBtn = document.getElementById('pauseBtn');
 pauseBtn.addEventListener('click', () => togglePause());
 
 /* =======================================================================
+   フォーカストラップ: パネル/モーダルを開いている間はTabキーでの移動を
+   その中だけに閉じ込め、閉じたときに開く前にフォーカスしていた要素へ戻す。
+   以前はどちらも未対応で、開いたままTabで背後の要素に抜けられた。
+   ======================================================================= */
+function getFocusable(container){
+  return [...container.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+    .filter(el => el.offsetParent !== null);
+}
+function makeFocusTrap(container){
+  let lastFocused = null;
+  function onKeydown(e){
+    if (e.key !== 'Tab') return;
+    const focusable = getFocusable(container);
+    if (focusable.length === 0) return;
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  }
+  return {
+    activate(){
+      lastFocused = document.activeElement;
+      container.addEventListener('keydown', onKeydown);
+      const focusable = getFocusable(container);
+      if (focusable[0]) focusable[0].focus();
+    },
+    deactivate(){
+      container.removeEventListener('keydown', onKeydown);
+      if (lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus();
+    },
+  };
+}
+
+/* =======================================================================
    分類フィルターパネル
    ======================================================================= */
 const menuBtn = document.getElementById('menuBtn');
@@ -707,6 +791,7 @@ const filterApplyCount = document.getElementById('filterApplyCount');
 const filterReset = document.getElementById('filterReset');
 const filterApply = document.getElementById('filterApply');
 
+const filterPanelTrap = makeFocusTrap(filterPanel);
 function openPanel(open){
   filterPanel.classList.toggle('open', open);
   filterBackdrop.classList.toggle('open', open);
@@ -714,6 +799,7 @@ function openPanel(open){
   menuBtn.classList.toggle('is-open', open);
   menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
   headerEl.classList.toggle('force-visible', open); // パネルを開いている間はホバーが外れてもロゴ/ボタンを隠さない
+  if (open) filterPanelTrap.activate(); else filterPanelTrap.deactivate();
 }
 menuBtn.addEventListener('click', () => openPanel(!filterPanel.classList.contains('open')));
 headerEl.addEventListener('mouseleave', () => headerEl.classList.remove('force-hidden'));
@@ -841,6 +927,7 @@ const detailSub = document.getElementById('detailSub');
 const detailCaption = document.getElementById('detailCaption');
 const detailSpecs = document.getElementById('detailSpecs');
 const detailVenueText = document.getElementById('detailVenueText');
+const detailModalTrap = makeFocusTrap(detailModal);
 
 function openDetail(w){
   detailImg.src = imageUrl(w, 1600);
@@ -856,12 +943,14 @@ function openDetail(w){
   detailBackdrop.classList.add('open');
   detailModal.classList.add('open');
   detailModal.setAttribute('aria-hidden', 'false');
+  detailModalTrap.activate();
 }
 
 function closeDetail(){
   detailBackdrop.classList.remove('open');
   detailModal.classList.remove('open');
   detailModal.setAttribute('aria-hidden', 'true');
+  detailModalTrap.deactivate();
 }
 detailClose.addEventListener('click', closeDetail);
 detailBackdrop.addEventListener('click', closeDetail);
@@ -880,8 +969,19 @@ function refresh(){
 /* =======================================================================
    初期化: data/*.jsonを読み込んでから、URL状態を復元して描画する
    ======================================================================= */
+const pageLoadingEl = document.getElementById('pageLoading');
+const pageLoadingMsgEl = document.getElementById('pageLoadingMsg');
+
 async function init(){
-  await loadData();
+  try {
+    await loadData();
+  } catch(err){
+    // 以前はここで失敗すると何のメッセージもなく画面が真っ暗なままだった。
+    // 原因(どのファイルが取得/解析できなかったか)を添えて画面に表示する。
+    pageLoadingEl.classList.add('is-error');
+    pageLoadingMsgEl.textContent = `コンテンツの読み込みに失敗しました。時間をおいて再度お試しください。(${err.message})`;
+    return;
+  }
   applySiteSettings();
   populateArtistSelect();
 
@@ -892,6 +992,7 @@ async function init(){
   setMode(state.mode);
   refresh();
   renderArtists();
+  pageLoadingEl.classList.add('hide');
 }
 init();
 </script>

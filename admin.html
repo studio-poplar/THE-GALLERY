@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <title>THE GALLERY — 管理画面</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0b'/%3E%3Crect x='14' y='14' width='36' height='36' fill='none' stroke='%23d7b56a' stroke-width='3'/%3E%3Ccircle cx='24' cy='26' r='3.4' fill='%23d7b56a'/%3E%3Cpath d='M17 43 L28 32 L36 40 L47 29 L47 43 Z' fill='%23d7b56a'/%3E%3C/svg%3E">
 <style>
   :root{
     --ink:#f4efe4;
@@ -249,6 +250,7 @@
   </header>
 
   <main>
+    <div class="note" id="loadErrorNote" style="display:none; border-color:rgba(220,110,90,.5); background:rgba(220,110,90,.08); color:#e08a76;"></div>
     <div class="note">
       これは自前の簡易管理画面です。データベースやサーバーは持たず、<b>data/ フォルダ内のJSONファイルを直接編集</b>するツールです。
       GitHub連携を設定すると、各パネルの「GitHubに保存」ボタンから<b>直接コミットして公開</b>できます(ファイルのダウンロード・置き換えは不要になります)。未設定の場合は「JSONをダウンロード」で出力し、手動で <code>data/</code> フォルダ内のファイルを置き換えてください。
@@ -367,9 +369,10 @@
     <h3 class="serif" id="workEditorTitle">作品を編集</h3>
     <form id="workForm">
       <div class="field"><label>タイトル</label><input type="text" id="w-title" required></div>
-      <div class="field"><label>作者</label><input type="text" id="w-artist" required>
-        <div class="hint">例: Katsushika Hokusai (葛飾北斎)。既存作者と同一人物にする場合は、表記(英語名部分)を完全一致させてください。</div>
+      <div class="field"><label>作者</label><input type="text" id="w-artist" required list="artistNamesList">
+        <div class="hint">例: Katsushika Hokusai (葛飾北斎)。既存作者と同一人物にする場合は、表記(英語名部分)を完全一致させてください(下の候補から選ぶと確実です)。</div>
       </div>
+      <datalist id="artistNamesList"></datalist>
       <div class="field"><label>年代(表示用)</label><input type="text" id="w-year" placeholder='例: c. 1830–1832' required></div>
       <div class="field"><label>年代(絞り込み用の数値)</label><input type="number" id="w-yearNum" required></div>
       <div class="field"><label>時代区分</label><select id="w-era"></select></div>
@@ -883,6 +886,10 @@ function renderArtistsTable(){
       <td class="row-actions"><button type="button" data-edit="${i}">編集</button></td>
     </tr>
   `).join('') : `<tr class="empty-row"><td colspan="4">作者がまだいません</td></tr>`;
+  // 作品編集フォームの「作者」欄の候補(表記ゆれ・タイプミスによる紐付け切れを防ぐ)。
+  // ARTISTSが変わるたびに(初期化・追加・編集・削除いずれも)このrenderArtistsTable経由で
+  // 呼ばれるので、常に最新の作者一覧と同期する。
+  document.getElementById('artistNamesList').innerHTML = ARTISTS.map(a => `<option value="${a.name}">`).join('');
 }
 artistsTbody.addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-edit]');
@@ -1089,13 +1096,33 @@ document.getElementById('layoutSaveGithub').addEventListener('click', (e) => sav
 /* =======================================================================
    初期化
    ======================================================================= */
+// data/*.jsonのどれか1つでも取得/解析に失敗すると、以前はPromise.allごと
+// 静かに失敗し、認証後にテーブルも編集フォームも動かない空の画面が残るだけで
+// 原因が分からなかった。ここでどのファイルが原因かを画面上部に表示する。
+async function fetchJSON(path){
+  let res;
+  try { res = await fetch(path); }
+  catch(e){ throw new Error(`${path} の取得に失敗しました(ネットワークエラー)`); }
+  if (!res.ok) throw new Error(`${path} の取得に失敗しました(HTTP ${res.status})`);
+  try { return await res.json(); }
+  catch(e){ throw new Error(`${path} の形式が正しくありません(JSON解析エラー)`); }
+}
+
 async function init(){
-  const [works, artists, site, layout] = await Promise.all([
-    fetch('data/works.json').then(r => r.json()),
-    fetch('data/artists.json').then(r => r.json()),
-    fetch('data/site-settings.json').then(r => r.json()),
-    fetch('data/hero-layout.json').then(r => r.json()),
-  ]);
+  let works, artists, site, layout;
+  try {
+    [works, artists, site, layout] = await Promise.all([
+      fetchJSON('data/works.json'),
+      fetchJSON('data/artists.json'),
+      fetchJSON('data/site-settings.json'),
+      fetchJSON('data/hero-layout.json'),
+    ]);
+  } catch(err){
+    const note = document.getElementById('loadErrorNote');
+    note.textContent = `データの読み込みに失敗したため、この画面は使用できません。ファイルの状態を確認してください。(${err.message})`;
+    note.style.display = 'block';
+    return;
+  }
   WORKS = works;
   ARTISTS = artists;
   SITE = site;

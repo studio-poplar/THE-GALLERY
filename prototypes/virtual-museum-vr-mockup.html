@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>THE GALLERY — AR/VR ウォークスルー モックアップ</title>
+<meta name="robots" content="noindex, nofollow">
+<title>THE GALLERY — バーチャルウォークスルー モックアップ</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0b'/%3E%3Crect x='14' y='14' width='36' height='36' fill='none' stroke='%23d7b56a' stroke-width='3'/%3E%3Ccircle cx='24' cy='26' r='3.4' fill='%23d7b56a'/%3E%3Cpath d='M17 43 L28 32 L36 40 L47 29 L47 43 Z' fill='%23d7b56a'/%3E%3C/svg%3E">
 <style>
   :root{
     --bg:#0f0e0c;
@@ -282,7 +284,7 @@
     <div id="vignette"></div>
 
     <div id="topbar">
-      <div id="wordmark">THE GALLERY<small>AR / VR WALKTHROUGH — MOCKUP</small></div>
+      <div id="wordmark">THE GALLERY<small>VIRTUAL WALKTHROUGH — MOCKUP</small></div>
       <button id="fullscreen-btn" type="button">全画面表示</button>
     </div>
 
@@ -373,7 +375,7 @@
       <div id="location-sub">サイドバーのスイッチをONにして歩き出してください</div>
     </div>
 
-    <div id="footer-credit">THE GALLERY — Studio Poplar<br>AR/VRウォークスルー機能 モックアップ</div>
+    <div id="footer-credit">THE GALLERY — Studio Poplar<br>バーチャルウォークスルー機能 モックアップ</div>
   </aside>
 
 </div>
@@ -1091,6 +1093,24 @@
   var modalOpen = false;
   var focusedFrame = null;
 
+  // フォーカストラップ: モーダルを開いている間はTabキーでの移動をその中だけに
+  // 閉じ込め、閉じたときに開く前にフォーカスしていた要素へ戻す(以前は未対応だった)。
+  var modalLastFocused = null;
+  function getFocusable(container){
+    var list = container.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+    var out = [];
+    for(var i=0;i<list.length;i++){ if(list[i].offsetParent !== null) out.push(list[i]); }
+    return out;
+  }
+  function onModalKeydown(e){
+    if(e.key !== 'Tab') return;
+    var focusable = getFocusable(modalEl);
+    if(focusable.length === 0) return;
+    var first = focusable[0], last = focusable[focusable.length-1];
+    if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  }
+
   function openArtworkModal(f){
     modalOpen = true;
     modalEl.classList.add('show');
@@ -1103,8 +1123,17 @@
     if(f.imageUrl){ modalImg.src = f.imageUrl; }
     else if(f.canvasImg && f.canvasImg.toDataURL){ modalImg.src = f.canvasImg.toDataURL(); }
     else { modalImg.removeAttribute('src'); }
+    modalLastFocused = document.activeElement;
+    modalEl.addEventListener('keydown', onModalKeydown);
+    var focusable = getFocusable(modalEl);
+    if(focusable[0]) focusable[0].focus();
   }
-  function closeArtworkModal(){ modalOpen = false; modalEl.classList.remove('show'); }
+  function closeArtworkModal(){
+    modalOpen = false;
+    modalEl.classList.remove('show');
+    modalEl.removeEventListener('keydown', onModalKeydown);
+    if(modalLastFocused && typeof modalLastFocused.focus === 'function') modalLastFocused.focus();
+  }
   document.getElementById('modal-close').addEventListener('click', closeArtworkModal);
   modalEl.addEventListener('click', function(e){ if(e.target === modalEl) closeArtworkModal(); });
   window.addEventListener('keydown', function(e){ if(e.key === 'Escape' && modalOpen) closeArtworkModal(); });
