@@ -18,7 +18,7 @@
 8. `footer`
 ---
 ## 2. 公開・リポジトリ情報
-- **公開URL**: https://studio-poplar.github.io/THE-GALLERY/
+- **公開URL**: https://gallery.studiopoplar.com/
 - **リポジトリ**: `github.com/studio-poplar/THE-GALLERY`(GitHub Pages、`master`ブランチのルートから配信)
 - **ローカルフォルダ**: `C:\Users\dito\Desktop\Claudcode\成果物\THE GALLERY\`
   (2026-08-16に `Claudcode\THE GALLERY` からこの場所へ移動された。以前のパスへの参照が残っていないか要注意。GitHub Desktop側もリポジトリの再登録が必要になった実績あり)
@@ -98,7 +98,7 @@ URLクエリパラメータ: `artist` / `era` / `school` / `mode`。~~`muted`~~(
 ## 7. 管理画面(`admin.html`)
 サーバー・データベースを持たない、**自前の簡易CMS**。4タブ構成(作品/作者/サイト設定/スライドレイアウト)。
 ### 7.1 アクセス
-`https://studio-poplar.github.io/THE-GALLERY/admin.html`。簡易パスワードゲートあり(クライアント側で把握済み)。**これはサーバー側認証ではなく、ブラウザ内でのSHA-256ハッシュ比較のみ**(view-sourceで解析すれば突破できるレベル)。`robots.txt`と`<meta name="robots" content="noindex">`で検索エンジンからは除外している。
+`https://gallery.studiopoplar.com/admin.html`。簡易パスワードゲートあり(クライアント側で把握済み)。**これはサーバー側認証ではなく、ブラウザ内でのSHA-256ハッシュ比較のみ**(view-sourceで解析すれば突破できるレベル)。`robots.txt`と`<meta name="robots" content="noindex">`で検索エンジンからは除外している。
 ### 7.2 保存の仕組み(重要)
 サーバーを持たないため、2つの保存方法がある。
 1. **GitHubに直接保存(推奨)**: 右上「⚙ GitHub連携設定」で、GitHubユーザー名/リポジトリ名/ブランチ名/Personal Access Token(Contents: Read and write権限に絞ったfine-grainedトークン)を設定すると、各タブの「GitHubに保存」ボタンから**GitHub Contents API経由で直接コミット**できる。トークンはブラウザの`localStorage`にのみ保存され、api.github.com以外には送信されない。
